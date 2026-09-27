@@ -15,6 +15,26 @@ npm run build      # type-check + production build into dist/
 npm run preview    # serve the production build
 ```
 
+## Deploying to Vercel
+
+The repo is ready for Vercel with no extra configuration (`vercel.json` is included):
+
+1. In Vercel, **Add New → Project** and import this GitHub repository.
+2. Vercel detects **Vite** automatically. The build command is `npm run build` and the output directory is `dist`.
+   Both are also pinned in `vercel.json`.
+3. Click **Deploy**.
+
+Alternatively, from the command line: `npm i -g vercel && vercel` (preview) or `vercel --prod`.
+
+Notes:
+- `vercel.json` rewrites every route to `index.html`, so deep links such as `/projects/prj_1` work when
+  the page is refreshed or opened directly.
+- Hashed files in `/assets` are served with long-lived cache headers.
+- Node 20.19+ is required (declared in `package.json` → `engines`). Vercel's default Node 22 works.
+- No environment variables are needed. `VITE_API_BASE_URL` is only relevant once a real backend is connected.
+- Each visitor's demo data lives in their own browser's localStorage, so data is not shared between users
+  or devices on the deployed site.
+
 To restore the original sample data, go to **Settings → Reset demo data**.
 
 ## Demo walkthrough (about 5 minutes)
