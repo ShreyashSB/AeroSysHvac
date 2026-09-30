@@ -1,10 +1,19 @@
-# Aerosys HVAC — Project & Operations Management (Phase 1 prototype)
+# Aerosys HVAC — Project Performance, Cost Control & Profitability (prototype)
 
-A functional web prototype of Aerosys HVAC's internal system for **projects, site engineers, assignments,
-expenses, instruments, costs, progress, profitability and dashboards**.
+A functional web prototype of Aerosys HVAC's internal system. It is built to answer one question for management:
 
-It runs entirely in the browser. Data is seeded with realistic sample records on first load and persisted
-to `localStorage`, so everything you create or change survives a page refresh. No backend is required.
+> **Are we executing our projects efficiently, and are we actually making money on them?**
+
+It links four layers so that each one feeds the next:
+
+```
+WORK ORDER → ANNEXURE / BOQ → EXECUTED QUANTITY → EXECUTED VALUE → PROGRESS → EARNED VALUE
+DAILY WORK LOGS → CONSUMED MAN-DAYS / IDLE DAYS → WAGES → RUNNING PPI
+WAGES + EXPENSES + OVERHEAD + INSTRUMENT + MANAGEMENT → COST TO DATE → PROJECTED FINAL COST → PROJECTED PROFIT
+```
+
+It runs entirely in the browser. Realistic sample data is seeded on first load and persisted to
+`localStorage`, so changes survive a refresh. No backend is required.
 
 ## Running it
 
@@ -37,69 +46,91 @@ Notes:
 
 To restore the original sample data, go to **Settings → Reset demo data**.
 
-## Demo walkthrough (about 5 minutes)
+## Demo walkthrough (about 10 minutes)
 
-1. **Sign in** as *Management* (Rajesh Kulkarni). The dashboard KPIs (contract value, cost, profit,
-   margin, average completion) are all calculated from the project records. None are hardcoded.
-2. **Projects → Create project.** Submit the empty form to see validation, then fill it in and pick a
-   project manager. The project appears in the list, the dashboard totals update, and it can now take
-   engineer assignments and expenses.
-3. **Open the project → Team → Assign engineer.** Pick an engineer (the list shows how much of each
-   engineer's time is already allocated) and an allocation %. Labour cost starts accruing from the start date.
-4. **Expenses tab → Add expense** for that engineer, attaching a receipt (the upload is simulated locally).
-   The expense goes in as **Pending** and the project manager and accounts are notified.
-5. **Approve** the expense. The *Cost to date*, *Estimated profit* and *Costs* tab update straight away,
-   and so do the dashboard totals.
-6. **Progress tab** → click 25% / 50% / … or use the slider. The dashboard's average completion updates.
-   Setting 100% completes the project and closes its assignments.
-7. Use the **Demo role** switcher in the top bar and pick *Site Engineer* (Vikram Patil). The navigation
-   shrinks to *My Projects / My Expenses / My Instruments*. Financials are hidden and the engineer
-   dashboard shows the new assignment.
-8. Switch to *Project Manager* or *Accounts* to see the scoped views. A PM only sees and approves
-   expenses for their own projects. Accounts sees finance and reports but cannot approve.
-9. **Reports** has project performance, the expense report, engineer utilisation and profitability, each
-   with filters and **Export CSV** (the file opens in Excel).
+1. **Sign in as Management.** The dashboard shows contract value, earned value, actual cost, projected
+   final cost and projected profit. Click **Projected profit** to see the portfolio P&L. **Attention required**
+   lists observations generated from the data, such as *"Apex Pharma … consumed 50% of allotted man-days but
+   is only 36% complete"*. The **Project financial health** table colour-codes every project; the
+   *At risk / Over budget / Below baseline* cards filter it.
+2. **Open *Phoenix Mall HVAC Retrofit*** (healthy). The Overview shows 12 health-coded KPIs. Click **PPI** or
+   **Running PPI** to see the equation behind each number. Click **Financial health** for the full P&L:
+   contract value → cost heads → cost to date → earned value → projected remaining cost → projected profit.
+3. **Annexure / BOQ tab.** On *Installation of Air Handling Unit*, choose **Update execution** and record
+   3 Nos. Return to Overview: progress, earned value and Running PPI have all moved.
+4. **New daily log.** The team is pre-filled from assignments. Mark one person **Idle** with the reason
+   *Site not ready*, add a work line against a BOQ item, and add a small expense. The preview shows the
+   man-days, idle days and work value the log will add. Save it, and consumed man-days, idle days, wages and
+   progress update.
+5. **Expenses tab → Approve** the expense you just added. Consumed expenses, cost to date and projected
+   profit update.
+6. **Performance tab** shows PPI vs Running PPI, plan vs actual (progress, man-days, expenses, cost),
+   cumulative earned value vs cost, man-day burn, and idle days by reason.
+7. **Employees → edit Vikram Patil → change Daily Cost.** Wages on every project he worked on are
+   re-priced immediately.
+8. **Compare the other projects:** *Orchid IT Park* (efficient: high progress, low man-days),
+   *GreenTech* (expenses running well ahead of progress), *Sunrise Tower* (high idle time),
+   *Apex Pharma* (low Running PPI), *Metro Hospital* (low projected margin), and *Blue Ridge* / *Horizon* (completed).
+9. **Switch roles** with the Demo role selector. A Site Engineer sees execution metrics but no wages,
+   costs or profit. A Project Manager only sees and logs their own projects.
 
 ## Roles
 
 | Role | Can see / do |
 | --- | --- |
-| Management | Everything: all projects, costs, profit, employees, salaries, reports, approvals, settings |
-| Project Manager | Own projects, engineer assignment, expense approval for own projects, instruments, progress, project costs |
-| Site Engineer | Assigned projects (no financials), progress updates, own expenses, own instruments |
-| Accounts | All projects' costs and profitability, all expenses (view), employees and salaries, financial reports |
+| Management | Everything: all projects, costs, profit, daily cost rates, reports, approvals, BOQ, daily logs, settings |
+| Project Manager | Own projects: daily logs, BOQ/execution, engineer assignment, expense approval, instruments, costs |
+| Site Engineer | Assigned projects' execution metrics (progress, man-days, idle, PPI) but no wages, costs or profit; own expenses & instruments |
+| Accounts | All projects' costs and profitability, all expenses (view), employees and daily cost rates, financial reports |
 
 Permissions live in `src/auth/permissions.ts`. The UI reads capability flags such as `can("expense.approve")`,
 and project rows are scoped per user by `scopeProjects()`.
 
-## Costing rules
+## Business rules & assumptions
 
-Implemented as pure functions in `src/domain/costing.ts`:
+Every formula lives in **one place**: `src/domain/assumptions.ts`. Rules that Aerosys has not yet
+confirmed are marked `DEMO ASSUMPTION` there, and the adjustable ones can be changed in **Settings**
+without code. Components never re-implement formulas. They read results from `src/domain/performance.ts`
+and explanations from `src/domain/explain.ts`, so the calculation drawers can never disagree with the KPIs.
 
-```
-Total Cost       = Labour + Material + Engineer Expenses + Travel/Accommodation + Instrument/Equipment + Other
-Estimated Profit = Contract Value − Total Cost
-Profit Margin    = Estimated Profit ÷ Contract Value × 100
-Forecast cost    = Total Cost + Budget × (1 − completion)      (estimate at completion)
-```
+| Metric | Formula | Status |
+| --- | --- | --- |
+| PPI | Work Order Value ÷ Allotted Man-Days | Working hypothesis |
+| Progress | Σ(executed qty × rate) ÷ Σ(BOQ contract amount) — value-weighted | Demo model |
+| Earned value | Work Order Value × Progress | |
+| Running PPI | Earned Value ÷ Consumed Man-Days | Demo assumption |
+| Consumed man-days | On-site, off-site and idle entries = 1 MD each; weekly off, holiday and leave = 0 | |
+| Idle days | Σ idle person-days + partial idle hours ÷ *working hours per man-day* (Settings) | |
+| Wages | Consumed MD × employee **Daily Cost** (current rate; not derived from salary or CTC) | Demo assumption |
+| Expenses | Approved expenses only (pending ones are shown separately) | |
+| Overhead | *x*% of wages (Settings, default 20%) | Demo assumption |
+| Instrument charges | Purchase value × monthly rate × months deployed (Settings, default 3%) | Demo assumption |
+| Management charges | *x*% of earned value (Settings, default 3%) | Demo assumption |
+| Projected final cost | *Performance:* cost to date ÷ progress, or *budget:* cost to date + budget × (1 − progress) (Settings). Uses the budget method below 10% progress. | Estimate |
+| Plan to date | Linear between start and expected completion (drives expected progress and planned MD/expenses) | Demo assumption |
 
-- **Labour**: each engineer's monthly salary × allocation % × days assigned (up to today), plus sub-contract labour entries.
-- **Material / Other**: direct project cost entries (Project → Costs → *Add cost*).
-- **Engineer expenses / Travel & accommodation**: only **approved** expenses count. Pending ones are shown separately.
-- **Instruments**: purchase value × monthly usage rate (Settings, default 3%) for each day the instrument is deployed on the project.
+**KPI colours** (green = healthy, amber = needs attention, red = concerning, neutral = informational) use
+thresholds in `HEALTH_THRESHOLDS` (same file) plus the target margin in Settings. Consumption metrics are
+judged against progress. For example, having used 58% of the man-days at 64% progress is healthy.
 
 ## Architecture
 
 ```
 src/
-  types/models.ts        Domain model: User, Employee, Project, ProjectAssignment, Expense,
-                         Instrument, ProjectInstrument, ProjectCost, AppNotification, AppSettings
+  types/models.ts        Domain model: User, Employee, Project, ProjectAssignment, BoqItem, BoqExecution,
+                         DailyLog (+ attendance), Expense, Instrument, ProjectInstrument, ProjectCost,
+                         ProjectDocument, AppNotification, AppSettings
   api/
     seed.ts              Realistic, internally consistent sample data (dates relative to today)
     mockDb.ts            localStorage "database" + simulated network latency
     http.ts              Stub HTTP client for the future REST backend
   services/              Data-access layer, one module per resource (REST-shaped, async)
-  domain/costing.ts      Pure cost / profit / portfolio calculations
+  domain/
+    assumptions.ts       ALL business formulas, demo assumptions & health thresholds
+    performance.ts       Project/portfolio engine: BOQ → progress → EV, logs → MD/idle/wages, costs, projection
+    health.ts            Green / amber / red / neutral classification of KPIs
+    explain.ts           Equation-style "how is this calculated" for each key metric
+    insights.ts          "Attention required" observations
   auth/                  Session, demo role switching, permissions & row-level scoping
   hooks/
     queries.ts           TanStack Query hooks per resource
@@ -123,8 +154,9 @@ Components never touch storage directly. They go through `src/services/*`, whose
 | Service method | Endpoint |
 | --- | --- |
 | `projectService.list / get / create / update / remove` | `GET/POST /api/projects`, `GET/PUT/DELETE /api/projects/:id` |
-| `projectService.updateProgress` | `PATCH /api/projects/:id/progress` |
 | `assignmentService.assign / release` | `POST /api/projects/:id/assignments`, `DELETE /api/assignments/:id` |
+| `boqService.createItem / addExecution / closePeriod` | `POST /api/projects/:id/boq-items`, `POST /api/boq-items/:id/executions`, … |
+| `dailyLogService.save / remove` | `POST /api/projects/:id/daily-logs`, `PUT/DELETE /api/daily-logs/:id` |
 | `expenseService.create / approve / reject` | `POST /api/expenses`, `POST /api/expenses/:id/approve`, `…/reject` |
 | `instrumentService.assign / returnInstrument / setStatus` | `POST /api/instruments/:id/assign`, `…/return`, `PATCH …/status` |
 

@@ -6,6 +6,9 @@ import {
   instrumentService,
   notificationService,
   projectCostService,
+  boqService,
+  dailyLogService,
+  documentService,
   projectService,
   settingsService,
 } from "@/services";
@@ -22,6 +25,10 @@ export const qk = {
   deployments: ["deployments"] as const,
   projectCosts: ["projectCosts"] as const,
   settings: ["settings"] as const,
+  boqItems: ["boqItems"] as const,
+  boqExecutions: ["boqExecutions"] as const,
+  dailyLogs: ["dailyLogs"] as const,
+  documents: ["documents"] as const,
   notifications: (userId?: string) => ["notifications", userId] as const,
 };
 
@@ -33,6 +40,10 @@ export const useExpenses = () => useQuery({ queryKey: qk.expenses, queryFn: expe
 export const useInstruments = () => useQuery({ queryKey: qk.instruments, queryFn: instrumentService.list });
 export const useDeployments = () => useQuery({ queryKey: qk.deployments, queryFn: instrumentService.listDeployments });
 export const useProjectCosts = () => useQuery({ queryKey: qk.projectCosts, queryFn: projectCostService.list });
+export const useBoqItems = () => useQuery({ queryKey: qk.boqItems, queryFn: boqService.listItems });
+export const useBoqExecutions = () => useQuery({ queryKey: qk.boqExecutions, queryFn: boqService.listExecutions });
+export const useDailyLogs = () => useQuery({ queryKey: qk.dailyLogs, queryFn: dailyLogService.list });
+export const useDocuments = () => useQuery({ queryKey: qk.documents, queryFn: documentService.list });
 export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: settingsService.get });
 
 export const useNotifications = (user: User | null) =>

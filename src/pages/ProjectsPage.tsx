@@ -19,7 +19,10 @@ import { Select } from "@/components/ui/input";
 import { Progress } from "@/components/ui/misc";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown";
 import { ProjectFormDialog } from "@/features/projects/ProjectFormDialog";
-import { includesText } from "@/lib/utils";
+import { cn, includesText } from "@/lib/utils";
+import { formatINRShort, formatPct, formatPerMd } from "@/lib/format";
+import { runningPpiHealth, TONE_CLASSES } from "@/domain/health";
+import { HealthBadge } from "@/components/common/Health";
 import type { Project, ProjectStatus } from "@/types/models";
 
 export function ProjectsPage() {
@@ -65,25 +68,47 @@ export function ProjectsPage() {
       ),
     },
     { key: "client", header: "Client", sortValue: (p) => p.clientName, cell: (p) => p.clientName, hideOnMobile: true },
-    { key: "site", header: "Site", sortValue: (p) => p.site, cell: (p) => <span className="text-muted-foreground">{p.site}</span>, hideOnMobile: true },
+    { key: "site", header: "Site", sortValue: (p) => p.site, cell: (p) => <span className="text-muted-foreground">{p.site}</span>, className: "hidden 2xl:table-cell" },
     { key: "manager", header: "Manager", sortValue: (p) => data.employeeById.get(p.managerId)?.name ?? "", cell: (p) => data.employeeById.get(p.managerId)?.name ?? "—", hideOnMobile: true },
     ...(showFinance
       ? [
           { key: "value", header: "Value", align: "right" as const, sortValue: (p: Project) => p.contractValue, cell: (p: Project) => <Money value={p.contractValue} /> },
-          { key: "cost", header: "Cost", align: "right" as const, sortValue: (p: Project) => data.financials.get(p.id)?.actualCost ?? 0, cell: (p: Project) => <Money value={data.financials.get(p.id)?.actualCost ?? 0} /> },
+          { key: "cost", header: "Cost", align: "right" as const, sortValue: (p: Project) => data.perf.get(p.id)?.costs.total ?? 0, cell: (p: Project) => <Money value={data.perf.get(p.id)?.costs.total ?? 0} /> },
+          {
+            key: "rppi",
+            header: "Running PPI",
+            align: "right" as const,
+            hideOnMobile: true,
+            sortValue: (p: Project) => data.perf.get(p.id)?.ppiVariancePct ?? 0,
+            cell: (p: Project) => {
+              const f = data.perf.get(p.id);
+              if (!f || !f.consumedManDays) return <span className="text-muted-foreground">—</span>;
+              const h = runningPpiHealth(f);
+              return (
+                <span className={cn("tabular", TONE_CLASSES[h.tone].text)} title={`${h.label} · baseline ${formatPerMd(f.ppi)}`}>
+                  {formatINRShort(f.runningPpi)}
+                  <span className="block text-[11px]">{f.ppiVariancePct >= 0 ? "+" : ""}{formatPct(f.ppiVariancePct, 0)}</span>
+                </span>
+              );
+            },
+          },
         ]
       : []),
     {
       key: "completion",
-      header: "Completion",
-      sortValue: (p) => p.completion,
-      cell: (p) => (
-        <div className="flex w-32 items-center gap-2">
-          <Progress value={p.completion} tone={p.completion === 100 ? "success" : "primary"} />
-          <span className="w-9 text-right text-xs tabular">{p.completion}%</span>
-        </div>
-      ),
+      header: "Progress",
+      sortValue: (p) => data.perf.get(p.id)?.progress ?? 0,
+      cell: (p) => {
+        const pr = (data.perf.get(p.id)?.progress ?? 0) * 100;
+        return (
+          <div className="flex w-28 items-center gap-2">
+            <Progress value={pr} tone={pr >= 100 ? "success" : "primary"} />
+            <span className="w-9 text-right text-xs tabular">{formatPct(pr, 0)}</span>
+          </div>
+        );
+      },
     },
+    { key: "health", header: "Health", sortValue: (p) => data.health.get(p.id)?.tone ?? "", cell: (p) => { const h = data.health.get(p.id); return h ? <HealthBadge health={h} /> : null; } },
     { key: "status", header: "Status", sortValue: (p) => p.status, cell: (p) => <ProjectStatusBadge status={p.status} /> },
     {
       key: "actions",

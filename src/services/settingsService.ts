@@ -1,10 +1,11 @@
 import { clone, db, simulateLatency } from "@/api/mockDb";
 import type { AppSettings } from "@/types/models";
+import { DEFAULT_SETTINGS } from "@/domain/assumptions";
 
 export const settingsService = {
   async get(): Promise<AppSettings> {
     await simulateLatency(50, 120);
-    return clone(db.read().settings);
+    return { ...DEFAULT_SETTINGS, ...clone(db.read().settings) };
   },
   async update(input: AppSettings): Promise<AppSettings> {
     await simulateLatency();

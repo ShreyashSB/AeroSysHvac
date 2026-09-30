@@ -1,120 +1,178 @@
-import { CalendarDays, MapPin, User2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, CalendarDays, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/misc";
-import { Money } from "@/components/common/Money";
-import { CostBreakdownBar } from "@/features/dashboard/CostBreakdownBar";
-import type { ProjectFinancials } from "@/domain/costing";
-import { daysBetween, todayISO } from "@/lib/dates";
-import { formatDate, formatPct } from "@/lib/format";
+import { KpiCard } from "@/components/common/KpiCard";
+import { HealthBadge } from "@/components/common/Health";
+import { CostBreakdown } from "@/features/dashboard/CostBreakdown";
+import { expenseHealth, idleHealth, manDayHealth, profitHealth, progressHealth, runningPpiHealth, TONE_CLASSES } from "@/domain/health";
+import type { ProjectPerformance } from "@/domain/performance";
+import { formatDate, formatINR, formatINRShort, formatNumber, formatPct, formatPerMd } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Employee, Project } from "@/types/models";
+import type { AppSettings, Project } from "@/types/models";
+import type { MetricKey } from "../explainers";
+import { DailyActivitySummary } from "../dailylog/DailyActivitySummary";
 
-export function OverviewTab({ project, fin, manager, showFinance }: { project: Project; fin: ProjectFinancials; manager?: Employee; showFinance: boolean }) {
-  const today = todayISO();
-  const totalDays = Math.max(1, daysBetween(project.startDate, project.endDate));
-  const elapsed = Math.min(totalDays, Math.max(0, daysBetween(project.startDate, today)));
-  const timePct = (elapsed / totalDays) * 100;
-  const daysLeft = daysBetween(today, project.endDate);
-  const behind = project.status === "active" && timePct - project.completion > 15;
+export function OverviewTab({
+  project,
+  perf: p,
+  settings,
+  showFinance,
+  onExplain,
+  onOpenPnl,
+  onOpenLog,
+  onOpenAttendance,
+  onGoTab,
+}: {
+  project: Project;
+  perf: ProjectPerformance;
+  settings: AppSettings;
+  showFinance: boolean;
+  onExplain: (k: MetricKey) => void;
+  onOpenPnl: () => void;
+  onOpenLog: (logId: string) => void;
+  onOpenAttendance: () => void;
+  onGoTab: (tab: string) => void;
+}) {
+  const sign = (n: number) => (n >= 0 ? "+" : "−");
+  const profit = profitHealth(p.finalMarginPct, settings);
+  const idleShare = p.consumedManDays ? (p.idleManDays / p.consumedManDays) * 100 : 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
+    <div className="space-y-6">
+      {/* KPI section */}
+      <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <KpiCard label="PPI (baseline)" value={formatPerMd(p.ppi)} sub="WO value ÷ allotted MD" onClick={() => onExplain("ppi")} />
+        <KpiCard
+          label="Running PPI"
+          value={p.consumedManDays ? formatPerMd(p.runningPpi) : "—"}
+          health={runningPpiHealth(p)}
+          sub={p.consumedManDays ? `${sign(p.ppiVariancePct)}${formatPct(Math.abs(p.ppiVariancePct), 0)} vs baseline` : undefined}
+          onClick={() => onExplain("runningPpi")}
+        />
+        <KpiCard
+          label="Progress"
+          value={formatPct(p.progress * 100)}
+          health={progressHealth(p, project)}
+          sub={project.status === "completed" ? undefined : `${formatPct(p.expectedProgress * 100, 0)} expected`}
+          onClick={() => onExplain("progress")}
+        />
+        <KpiCard label="Allotted Man Days" value={`${formatNumber(p.allottedManDays)} MD`} sub={`${formatNumber(p.plannedManDaysToDate, 0)} MD planned by today`} />
+        <KpiCard
+          label="Consumed Man Days"
+          value={`${formatNumber(p.consumedManDays, 1)} MD`}
+          health={manDayHealth(p)}
+          sub={`${formatPct(p.manDayUtilisation * 100, 0)} of allotted`}
+          onClick={() => onExplain("manDays")}
+        />
+        <KpiCard
+          label="Idle Days"
+          value={`${formatNumber(p.idleManDays, 1)} MD`}
+          health={idleHealth(p)}
+          sub={p.consumedManDays ? `${formatPct(idleShare, 0)} of consumed` : undefined}
+          onClick={() => onExplain("idle")}
+        />
         {showFinance && (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <Metric label="Contract value" value={<Money value={fin.contractValue} />} />
-            <Metric label="Estimated cost (budget)" value={<Money value={fin.estimatedCost} />} />
-            <Metric label="Actual cost to date" value={<Money value={fin.actualCost} />} sub={`${formatPct(fin.budgetUtilisation, 0)} of budget`} />
-            <Metric label="Estimated profit" value={<Money value={fin.estimatedProfit} signed />} sub="Contract value − actual cost" />
-            <Metric label="Profit margin" value={formatPct(fin.profitMargin)} tone={fin.profitMargin >= 0 ? "pos" : "neg"} />
-            <Metric label="Completion" value={`${project.completion}%`} sub={<Progress value={project.completion} className="mt-1.5" />} />
-          </div>
+          <>
+            <KpiCard label="Allotted Expenses" value={formatINRShort(p.allottedExpenses)} sub={`${formatINRShort(p.allottedExpenses - p.consumedExpenses)} remaining`} />
+            <KpiCard
+              label="Consumed Expenses"
+              value={formatINRShort(p.consumedExpenses)}
+              health={expenseHealth(p)}
+              sub={`${formatPct(p.expenseUtilisation * 100, 0)} of allotted`}
+              onClick={() => onExplain("expenses")}
+            />
+            <KpiCard label="Wages" value={formatINRShort(p.costs.wages)} sub="MD × daily cost" onClick={() => onExplain("wages")} />
+            <KpiCard label="Overhead" value={formatINRShort(p.costs.overhead)} sub={`${formatPct(settings.overheadPctOfWages, 0)} of wages`} onClick={() => onExplain("overhead")} />
+            <KpiCard label="Instrument Charges" value={formatINRShort(p.costs.instruments)} sub="Deployment usage" onClick={() => onExplain("instruments")} />
+            <KpiCard label="Management Charges" value={formatINRShort(p.costs.management)} sub={`${formatPct(settings.managementPctOfEarnedValue, 0)} of earned value`} onClick={() => onExplain("management")} />
+          </>
         )}
+      </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Timeline</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                <span>Start · {formatDate(project.startDate)}</span>
-                <span>Expected completion · {formatDate(project.endDate)}</span>
+      {showFinance && (
+        <div className="grid gap-6 xl:grid-cols-5">
+          {/* Financial health – clickable P&L */}
+          <Card className={cn("border-l-4 xl:col-span-2", TONE_CLASSES[profit.tone].border)}>
+            <button type="button" onClick={onOpenPnl} className="group block w-full p-5 text-left cursor-pointer" aria-label="Open profit and loss breakdown">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">Financial health</p>
+                  <p className="text-xs text-muted-foreground">Projected outcome at completion (estimate)</p>
+                </div>
+                <HealthBadge health={profit} />
               </div>
-              <div className="relative h-3 rounded-full bg-muted">
-                <div className="absolute inset-y-0 left-0 rounded-full bg-primary/25" style={{ width: `${timePct}%` }} title={`Time elapsed ${formatPct(timePct, 0)}`} />
-                <div className="absolute inset-y-[3px] left-0 rounded-full bg-primary" style={{ width: `${project.completion}%` }} title={`Work complete ${project.completion}%`} />
-              </div>
-              <div className="mt-2 flex flex-wrap gap-4 text-xs">
-                <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary/30" /> Time elapsed {formatPct(timePct, 0)}</span>
-                <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary" /> Work complete {project.completion}%</span>
-                <span className={cn("font-medium", daysLeft < 0 && project.completion < 100 ? "text-danger" : "text-muted-foreground")}>
-                  {project.completion >= 100 ? "Completed" : daysLeft >= 0 ? `${daysLeft} days remaining` : `Overdue by ${-daysLeft} days`}
-                </span>
-              </div>
-              {behind && (
-                <p className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning">
-                  Progress is trailing the schedule by {Math.round(timePct - project.completion)} percentage points.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              <p className="mt-4 text-xs text-muted-foreground">Projected profit</p>
+              <p className={cn("text-3xl font-semibold tracking-tight tabular", TONE_CLASSES[profit.tone].text)}>
+                {formatINRShort(p.finalProfit)} <span className="text-lg font-medium">· {formatPct(p.finalMarginPct)} margin</span>
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div><dt className="text-xs text-muted-foreground">Work order value</dt><dd className="font-medium tabular">{formatINRShort(p.contractValue)}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Earned value</dt><dd className="font-medium tabular">{formatINRShort(p.earnedValue)}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Actual cost to date</dt><dd className="font-medium tabular">{formatINRShort(p.costs.total)}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Projected final cost</dt><dd className="font-medium tabular">{formatINRShort(p.finalCost)}</dd></div>
+              </dl>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary group-hover:underline">
+                View P&L breakdown <ArrowRight className="size-4" />
+              </span>
+            </button>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Scope</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground">{project.description || "No description provided."}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Row icon={<User2 />} label="Project manager" value={manager?.name ?? "—"} />
-            <Row icon={<MapPin />} label="Site" value={project.site} />
-            <Row icon={<CalendarDays />} label="Duration" value={`${totalDays} days`} />
-            <Row label="Project code" value={project.code} />
-            <Row label="Client" value={project.clientName} />
-          </CardContent>
-        </Card>
-        {showFinance && (
-          <Card>
+          <Card className="xl:col-span-3">
             <CardHeader>
-              <CardTitle>Cost composition</CardTitle>
+              <div>
+                <CardTitle>Where the money is going</CardTitle>
+                <CardDescription>Actual cost to date by head — click a row for its calculation</CardDescription>
+              </div>
             </CardHeader>
             <CardContent>
-              <CostBreakdownBar costs={fin.costs} />
+              <CostBreakdown costs={p.costs} budget={p.budget} onSelect={(h) => onExplain(h as MetricKey)} />
             </CardContent>
           </Card>
-        )}
-      </div>
-    </div>
-  );
-}
+        </div>
+      )}
 
-function Metric({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "pos" | "neg" }) {
-  return (
-    <Card className="p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("mt-1 text-xl font-semibold tabular", tone === "pos" && "text-success", tone === "neg" && "text-danger")}>{value}</p>
-      {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
-    </Card>
-  );
-}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Daily activity summary</CardTitle>
+            <CardDescription>
+              {p.logCount} daily logs · last update {p.lastLogDate ? formatDate(p.lastLogDate) : "—"}
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onOpenAttendance}>
+              <CalendarDays /> View Attendance & Work Summary
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onGoTab("log")}>All logs</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0 pb-2">
+          <DailyActivitySummary projectId={project.id} limit={5} onOpen={onOpenLog} showCost={showFinance} />
+        </CardContent>
+      </Card>
 
-function Row({ icon, label, value }: { icon?: React.ReactNode; label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="mt-0.5 w-4 text-muted-foreground [&_svg]:size-4">{icon}</span>
-      <span className="w-32 shrink-0 text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle className="flex items-center gap-2"><TrendingUp className="size-4" /> Schedule</CardTitle>
+            <CardDescription>{formatDate(project.startDate)} → {formatDate(project.endDate)} · {p.totalDays} days</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Time elapsed</span><span>{formatPct(p.expectedProgress * 100, 0)}</span></div>
+            <Progress value={p.expectedProgress * 100} tone="warning" />
+          </div>
+          <div>
+            <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Work complete (BOQ value)</span><span>{formatPct(p.progress * 100, 1)}</span></div>
+            <Progress value={p.progress * 100} tone={p.progress >= 1 ? "success" : "primary"} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Executed {formatINR(p.executedValue)} of {formatINR(p.boqValue)} BOQ value. {project.description}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

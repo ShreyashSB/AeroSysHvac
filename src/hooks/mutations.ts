@@ -9,7 +9,11 @@ import {
   projectCostService,
   projectService,
   settingsService,
+  boqService,
+  dailyLogService,
+  documentService,
 } from "@/services";
+import type { DailyLogInput } from "@/services/dailyLogService";
 import { qk } from "./queries";
 
 const NOTIFS: QueryKey = ["notifications"];
@@ -36,11 +40,6 @@ export const useUpdateProject = () =>
     ({ id, input }: { id: string; input: Parameters<typeof projectService.update>[1] }) => projectService.update(id, input),
     [qk.projects, qk.assignments, NOTIFS],
   );
-export const useUpdateProgress = () =>
-  useServiceMutation(
-    ({ id, completion }: { id: string; completion: number }) => projectService.updateProgress(id, completion),
-    [qk.projects, qk.assignments, NOTIFS],
-  );
 export const useSetProjectStatus = () =>
   useServiceMutation(
     ({ id, status }: { id: string; status: Parameters<typeof projectService.setStatus>[1] }) => projectService.setStatus(id, status),
@@ -49,7 +48,34 @@ export const useSetProjectStatus = () =>
 export const useDeleteProject = () =>
   useServiceMutation(projectService.remove, [
     qk.projects, qk.assignments, qk.expenses, qk.projectCosts, qk.deployments, qk.instruments,
+    qk.boqItems, qk.boqExecutions, qk.dailyLogs, qk.documents,
   ]);
+
+// Annexure / BOQ -------------------------------------------------------------
+const BOQ: QueryKey[] = [qk.boqItems, qk.boqExecutions, NOTIFS];
+export const useCreateBoqItem = () => useServiceMutation(boqService.createItem, BOQ);
+export const useUpdateBoqItem = () =>
+  useServiceMutation(({ id, input }: { id: string; input: Parameters<typeof boqService.updateItem>[1] }) => boqService.updateItem(id, input), BOQ);
+export const useDeleteBoqItem = () => useServiceMutation(boqService.deleteItem, BOQ);
+export const useAddExecution = () => useServiceMutation(boqService.addExecution, BOQ);
+export const useDeleteExecution = () => useServiceMutation(boqService.deleteExecution, BOQ);
+export const useClosePeriod = () => useServiceMutation(boqService.closePeriod, [qk.projects]);
+
+// Daily logs -----------------------------------------------------------------
+export const useSaveDailyLog = () =>
+  useServiceMutation(
+    ({ input, actorId, logId }: { input: DailyLogInput; actorId: string; logId?: string }) => dailyLogService.save(input, actorId, logId),
+    [qk.dailyLogs, qk.boqExecutions, qk.expenses, NOTIFS],
+  );
+export const useDeleteDailyLog = () => useServiceMutation(dailyLogService.remove, [qk.dailyLogs, qk.boqExecutions, qk.expenses]);
+
+// Documents ------------------------------------------------------------------
+export const useUploadDocument = () =>
+  useServiceMutation(
+    ({ input, actorId }: { input: Parameters<typeof documentService.upload>[0]; actorId: string }) => documentService.upload(input, actorId),
+    [qk.documents],
+  );
+export const useDeleteDocument = () => useServiceMutation(documentService.remove, [qk.documents]);
 
 // Assignments ----------------------------------------------------------------
 export const useAssignEngineer = () => useServiceMutation(assignmentService.assign, [qk.assignments, NOTIFS]);

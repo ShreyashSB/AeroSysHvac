@@ -1,10 +1,17 @@
 import { useMemo } from "react";
-import { computeProjectFinancials, summarisePortfolio, type ProjectFinancials } from "@/domain/costing";
+import { buildIndex, computeProjectPerformance, summarisePortfolio, type ProjectPerformance } from "@/domain/performance";
+import { overallHealth, type Health } from "@/domain/health";
+import { generateInsights } from "@/domain/insights";
+import { DEFAULT_SETTINGS } from "@/domain/assumptions";
 import { scopeProjects } from "@/auth/permissions";
 import { useAuth } from "@/auth/AuthContext";
 import {
   useAssignments,
+  useBoqExecutions,
+  useBoqItems,
+  useDailyLogs,
   useDeployments,
+  useDocuments,
   useEmployees,
   useExpenses,
   useInstruments,
@@ -14,8 +21,10 @@ import {
 } from "./queries";
 
 /**
- * Joins the independent resources into lookups and derived financials.
- * Components read from here instead of stitching relationships themselves.
+ * Joins the independent resources and derives performance for every project
+ * through the central engine (src/domain). Components read from here instead
+ * of stitching relationships or re-implementing formulas themselves, so every
+ * screen shows the same numbers.
  */
 export function useAppData() {
   const projects = useProjects();
@@ -25,48 +34,68 @@ export function useAppData() {
   const instruments = useInstruments();
   const deployments = useDeployments();
   const projectCosts = useProjectCosts();
-  const settings = useSettings();
+  const settingsQ = useSettings();
+  const boqItems = useBoqItems();
+  const boqExecutions = useBoqExecutions();
+  const dailyLogs = useDailyLogs();
+  const documents = useDocuments();
 
-  const all = [projects, employees, assignments, expenses, instruments, deployments, projectCosts, settings];
+  const all = [projects, employees, assignments, expenses, instruments, deployments, projectCosts, settingsQ, boqItems, boqExecutions, dailyLogs, documents];
   const isLoading = all.some((q) => q.isLoading);
   const error = all.find((q) => q.error)?.error ?? null;
 
   const derived = useMemo(() => {
     const p = projects.data ?? [];
     const e = employees.data ?? [];
-    const ctx = {
+    const settings = settingsQ.data ?? DEFAULT_SETTINGS;
+    const index = buildIndex({
       employees: e,
-      assignments: assignments.data ?? [],
       expenses: expenses.data ?? [],
       instruments: instruments.data ?? [],
       projectInstruments: deployments.data ?? [],
       projectCosts: projectCosts.data ?? [],
-      settings: settings.data ?? { instrumentMonthlyRatePct: 3 },
-    };
-    const financials = new Map<string, ProjectFinancials>();
-    for (const project of p) financials.set(project.id, computeProjectFinancials(project, ctx));
+      boqItems: boqItems.data ?? [],
+      boqExecutions: boqExecutions.data ?? [],
+      dailyLogs: dailyLogs.data ?? [],
+    });
+    const perf = new Map<string, ProjectPerformance>();
+    const health = new Map<string, Health>();
+    for (const project of p) {
+      const f = computeProjectPerformance(project, index, settings);
+      perf.set(project.id, f);
+      health.set(project.id, overallHealth(f, project, settings));
+    }
     return {
       projects: p,
       employees: e,
-      assignments: ctx.assignments,
-      expenses: ctx.expenses,
-      instruments: ctx.instruments,
-      deployments: ctx.projectInstruments,
-      projectCosts: ctx.projectCosts,
-      settings: settings.data,
-      financials,
+      assignments: assignments.data ?? [],
+      expenses: expenses.data ?? [],
+      instruments: instruments.data ?? [],
+      deployments: deployments.data ?? [],
+      projectCosts: projectCosts.data ?? [],
+      boqItems: boqItems.data ?? [],
+      boqExecutions: boqExecutions.data ?? [],
+      dailyLogs: dailyLogs.data ?? [],
+      documents: documents.data ?? [],
+      settings,
+      index,
+      perf,
+      health,
       employeeById: new Map(e.map((x) => [x.id, x])),
       projectById: new Map(p.map((x) => [x.id, x])),
-      instrumentById: new Map(ctx.instruments.map((x) => [x.id, x])),
+      instrumentById: new Map((instruments.data ?? []).map((x) => [x.id, x])),
     };
-  }, [projects.data, employees.data, assignments.data, expenses.data, instruments.data, deployments.data, projectCosts.data, settings.data]);
+  }, [
+    projects.data, employees.data, assignments.data, expenses.data, instruments.data, deployments.data,
+    projectCosts.data, settingsQ.data, boqItems.data, boqExecutions.data, dailyLogs.data, documents.data,
+  ]);
 
   return { ...derived, isLoading, error };
 }
 
 export type AppData = ReturnType<typeof useAppData>;
 
-/** Projects visible to the signed-in user (row-level scoping) + portfolio summary. */
+/** Projects visible to the signed-in user (row-level scoping) + portfolio summary & insights. */
 export function useScopedData() {
   const data = useAppData();
   const { user } = useAuth();
@@ -83,18 +112,15 @@ export function useScopedData() {
               : ids.has(e.projectId) || e.employeeId === user.employeeId,
         )
       : [];
-    const instruments = user
-      ? data.instruments.filter((i) =>
-          isEngineer ? i.assignedEngineerId === user.employeeId : true,
-        )
-      : [];
+    const instruments = user ? data.instruments.filter((i) => (isEngineer ? i.assignedEngineerId === user.employeeId : true)) : [];
     return {
       ...data,
       scopedProjects: projects,
       scopedProjectIds: ids,
       scopedExpenses: expenses,
       scopedInstruments: instruments,
-      summary: summarisePortfolio(projects, data.financials),
+      portfolio: summarisePortfolio(projects, data.perf),
+      insights: generateInsights(projects, data.perf, data.settings),
     };
   }, [data, user]);
 }

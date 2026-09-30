@@ -49,3 +49,13 @@ export function timeAgo(iso: string): string {
   if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`;
   return formatDate(iso);
 }
+
+/** Indian digit grouping with up to `digits` decimals (trailing zeros trimmed). */
+export function formatNumber(value: number, digits = 0): string {
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: digits }).format(value);
+}
+
+/** ₹ per man-day, e.g. "₹10,000 / MD". */
+export function formatPerMd(value: number): string {
+  return `${formatINR(value)} / MD`;
+}

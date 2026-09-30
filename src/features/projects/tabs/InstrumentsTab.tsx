@@ -8,9 +8,10 @@ import { EmptyState } from "@/components/common/States";
 import { InstrumentStatusBadge } from "@/components/common/StatusBadges";
 import { AssignInstrumentDialog } from "@/features/instruments/InstrumentDialogs";
 import { useReturnInstrument } from "@/hooks/mutations";
-import { instrumentCostForDeployment } from "@/domain/costing";
+import { instrumentCharge } from "@/domain/assumptions";
+import { daysBetween, minDate, todayISO } from "@/lib/dates";
 import { formatDate, formatINR } from "@/lib/format";
-import type { Employee, Instrument, Project, ProjectInstrument } from "@/types/models";
+import type { AppSettings, Employee, Instrument, Project, ProjectInstrument } from "@/types/models";
 
 export function InstrumentsTab({
   project,
@@ -20,7 +21,7 @@ export function InstrumentsTab({
   instrumentById,
   canManage,
   showCost,
-  monthlyRatePct,
+  settings,
 }: {
   project: Project;
   instruments: Instrument[];
@@ -29,8 +30,13 @@ export function InstrumentsTab({
   instrumentById: Map<string, Instrument>;
   canManage: boolean;
   showCost: boolean;
-  monthlyRatePct: number;
+  settings: AppSettings;
 }) {
+  const monthlyRatePct = settings.instrumentMonthlyRatePct;
+  const chargeFor = (d: ProjectInstrument, value: number) => {
+    const end = minDate(d.returnedAt ?? todayISO(), todayISO());
+    return end < d.assignedAt ? 0 : instrumentCharge(value, daysBetween(d.assignedAt, end) + 1, settings);
+  };
   const [picking, setPicking] = useState(false);
   const [assigning, setAssigning] = useState<Instrument | null>(null);
   const ret = useReturnInstrument();
@@ -103,7 +109,7 @@ export function InstrumentsTab({
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {formatDate(d.assignedAt)} – {d.returnedAt ? formatDate(d.returnedAt) : "present"}
-                    {showCost && ins && ` · ${formatINR(instrumentCostForDeployment(d, ins.purchaseValue, monthlyRatePct))}`}
+                    {showCost && ins && ` · ${formatINR(chargeFor(d, ins.purchaseValue))}`}
                   </span>
                 </div>
               );

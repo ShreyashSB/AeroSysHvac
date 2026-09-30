@@ -41,7 +41,7 @@ export const assignmentService = {
 
   /**
    * DELETE /api/assignments/:id – releases the engineer. The record is kept with
-   * an end date so labour cost already incurred stays on the project.
+   * an end date so the assignment history is preserved.
    * Assignments that started today (no cost incurred) are removed entirely.
    */
   async release(id: string): Promise<void> {

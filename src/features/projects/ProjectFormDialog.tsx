@@ -10,7 +10,8 @@ import { useAppData } from "@/hooks/useAppData";
 import { useAuth } from "@/auth/AuthContext";
 import { PROJECT_STATUS } from "@/components/common/StatusBadges";
 import { addDays, todayISO } from "@/lib/dates";
-import { formatINRShort } from "@/lib/format";
+import { formatINRShort, formatPerMd } from "@/lib/format";
+import { ppi } from "@/domain/assumptions";
 import type { Project, ProjectStatus } from "@/types/models";
 
 type Values = {
@@ -20,6 +21,8 @@ type Values = {
   managerId: string;
   contractValue: string;
   estimatedCost: string;
+  allottedManDays: string;
+  allottedExpenses: string;
   startDate: string;
   endDate: string;
   description: string;
@@ -34,6 +37,8 @@ function toValues(p?: Project): Values {
     managerId: p?.managerId ?? "",
     contractValue: p ? String(p.contractValue) : "",
     estimatedCost: p ? String(p.estimatedCost) : "",
+    allottedManDays: p ? String(p.allottedManDays) : "",
+    allottedExpenses: p ? String(p.allottedExpenses) : "",
     startDate: p?.startDate ?? todayISO(),
     endDate: p?.endDate ?? addDays(todayISO(), 180),
     description: p?.description ?? "",
@@ -53,6 +58,8 @@ function validate(v: Values): Errors<Values> {
   const ec = Number(v.estimatedCost);
   if (v.estimatedCost && !(ec >= 0)) e.estimatedCost = "Enter a valid amount";
   else if (ec > cv * 1.5 && cv > 0) e.estimatedCost = "Estimated cost looks too high vs. contract value";
+  if (!(Number(v.allottedManDays) > 0)) e.allottedManDays = "Enter allotted man-days (PPI baseline)";
+  if (v.allottedExpenses !== "" && !(Number(v.allottedExpenses) >= 0)) e.allottedExpenses = "Enter a valid amount";
   if (!v.startDate) e.startDate = "Start date is required";
   if (!v.endDate) e.endDate = "Expected completion is required";
   else if (v.startDate && v.endDate < v.startDate) e.endDate = "Must be after start date";
@@ -83,7 +90,9 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
       site: vals.site.trim(),
       managerId: vals.managerId,
       contractValue: Number(vals.contractValue),
-      estimatedCost: vals.estimatedCost ? Number(vals.estimatedCost) : Math.round(Number(vals.contractValue) * 0.72),
+      estimatedCost: vals.estimatedCost ? Number(vals.estimatedCost) : Math.round(Number(vals.contractValue) * 0.78),
+      allottedManDays: Number(vals.allottedManDays),
+      allottedExpenses: vals.allottedExpenses ? Number(vals.allottedExpenses) : 0,
       startDate: vals.startDate,
       endDate: vals.endDate,
       description: vals.description.trim(),
@@ -167,16 +176,28 @@ export function ProjectFormDialog({ open, onOpenChange, project }: { open: boole
               ))}
             </Select>
           </Field>
-          <Field label="Contract value (₹)" htmlFor="p-cv" required error={errors.contractValue} hint={cv > 0 ? formatINRShort(cv) : undefined}>
+          <Field label="Work order value (₹)" htmlFor="p-cv" required error={errors.contractValue} hint={cv > 0 ? formatINRShort(cv) : undefined}>
             <Input id="p-cv" type="number" min={0} step={1000} value={v.contractValue} onChange={(e) => set("contractValue", e.target.value)} placeholder="e.g. 5000000" aria-invalid={!!errors.contractValue} />
           </Field>
           <Field
-            label="Estimated cost / budget (₹)"
+            label="Budgeted total cost (₹)"
             htmlFor="p-ec"
             error={errors.estimatedCost}
-            hint={v.estimatedCost ? formatINRShort(Number(v.estimatedCost)) : "Defaults to 72% of contract value"}
+            hint={v.estimatedCost ? formatINRShort(Number(v.estimatedCost)) : "Defaults to 78% of work order value"}
           >
             <Input id="p-ec" type="number" min={0} step={1000} value={v.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} aria-invalid={!!errors.estimatedCost} />
+          </Field>
+          <Field
+            label="Allotted man-days"
+            htmlFor="p-md"
+            required
+            error={errors.allottedManDays}
+            hint={cv > 0 && Number(v.allottedManDays) > 0 ? `PPI baseline = ${formatPerMd(ppi(cv, Number(v.allottedManDays)))}` : "Used as the PPI baseline"}
+          >
+            <Input id="p-md" type="number" min={0} step={5} value={v.allottedManDays} onChange={(e) => set("allottedManDays", e.target.value)} placeholder="e.g. 250" aria-invalid={!!errors.allottedManDays} />
+          </Field>
+          <Field label="Allotted expenses (₹)" htmlFor="p-ax" error={errors.allottedExpenses} hint={v.allottedExpenses ? formatINRShort(Number(v.allottedExpenses)) : "Site expense budget"}>
+            <Input id="p-ax" type="number" min={0} step={1000} value={v.allottedExpenses} onChange={(e) => set("allottedExpenses", e.target.value)} aria-invalid={!!errors.allottedExpenses} />
           </Field>
           <Field label="Start date" htmlFor="p-start" required error={errors.startDate}>
             <Input id="p-start" type="date" value={v.startDate} onChange={(e) => set("startDate", e.target.value)} aria-invalid={!!errors.startDate} />

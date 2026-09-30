@@ -28,7 +28,11 @@ export interface Employee {
   phone: string;
   department: Department;
   designation: string;
-  monthlySalary: number; // CTC per month, INR – used for labour costing only
+  /**
+   * Internal project costing rate in ₹ per man-day. Entered directly by an
+   * authorised user – deliberately NOT derived from salary / CTC.
+   */
+  dailyCost: number;
   joiningDate: ISODate;
   status: EmployeeStatus;
   isSiteEngineer: boolean;
@@ -44,13 +48,20 @@ export interface Project {
   clientName: string;
   site: string;
   managerId: ID;
+  /** Work order value. */
   contractValue: number;
-  estimatedCost: number; // budget
+  /** Budgeted total cost (all cost heads). */
+  estimatedCost: number;
+  /** Man-days allotted in the estimate – the PPI baseline. */
+  allottedManDays: number;
+  /** Budget for site expenses (travel, stay, consumables…). */
+  allottedExpenses: number;
   startDate: ISODate;
   endDate: ISODate; // expected completion
+  /** Start of the current measurement (RA bill) period – splits Previous vs Current BOQ quantities. */
+  periodStart: ISODate;
   description: string;
   status: ProjectStatus;
-  completion: number; // 0-100
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -60,7 +71,7 @@ export interface ProjectAssignment {
   projectId: ID;
   employeeId: ID;
   role: "Lead Engineer" | "Site Engineer" | "Technician" | "Supervisor";
-  allocation: number; // % of time on the project (drives labour cost)
+  allocation: number; // planned % of time on the project (availability planning; wages come from daily logs)
   startDate: ISODate;
   endDate: ISODate | null; // null = still active
 }
@@ -93,6 +104,8 @@ export interface Expense {
   date: ISODate;
   description: string;
   receipt: Receipt | null;
+  /** Set when the expense was raised from a daily work log. */
+  dailyLogId: ID | null;
   status: ExpenseStatus;
   submittedAt: ISODateTime;
   reviewedById: ID | null;
@@ -133,9 +146,9 @@ export interface ProjectInstrument {
   returnedAt: ISODate | null;
 }
 
-export type ProjectCostType = "material" | "labour_contract" | "other";
+export type ProjectCostType = "subcontract" | "hire" | "other";
 
-/** Direct project cost entries not covered by expenses (e.g. equipment purchase, subcontract labour). */
+/** Other direct project costs not covered by expenses (e.g. sub-contract labour, crane hire). */
 export interface ProjectCost {
   id: ID;
   projectId: ID;
@@ -153,7 +166,8 @@ export type NotificationType =
   | "instrument_assigned"
   | "project_deadline"
   | "project_completion"
-  | "project_created";
+  | "project_created"
+  | "idle_recorded";
 
 export interface AppNotification {
   id: ID;
@@ -170,10 +184,94 @@ export interface AppNotification {
   dedupeKey?: string;
 }
 
+// ---------------------------------------------------------------- Annexure / BOQ
+
+export interface BoqItem {
+  id: ID;
+  projectId: ID;
+  srNo: string;
+  description: string;
+  uom: string;
+  contractQty: number;
+  rate: number;
+}
+
+/** Quantity executed against a BOQ item – from a daily log or a manual measurement. */
+export interface BoqExecution {
+  id: ID;
+  projectId: ID;
+  boqItemId: ID;
+  date: ISODate;
+  qty: number;
+  remarks: string;
+  dailyLogId: ID | null;
+}
+
+// ---------------------------------------------------------------- Daily work log
+
+export type AttendanceStatus = "on_site" | "off_site" | "idle" | "weekly_off" | "holiday" | "leave";
+
+export type IdleReason =
+  | "Site not ready"
+  | "Material unavailable"
+  | "Client dependency"
+  | "Equipment unavailable"
+  | "Approval pending"
+  | "Design issue"
+  | "Weather"
+  | "Other";
+
+export interface AttendanceEntry {
+  employeeId: ID;
+  status: AttendanceStatus;
+  /** Partial idle time (man-hours) for someone otherwise working. */
+  idleHours: number;
+  idleReason: IdleReason | null;
+}
+
+export interface DailyLog {
+  id: ID;
+  projectId: ID;
+  date: ISODate;
+  attendance: AttendanceEntry[];
+  activities: string;
+  remarks: string;
+  createdById: ID;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+// ---------------------------------------------------------------- Documents
+
+export type DocumentType = "Work Order" | "Annexure / BOQ" | "Drawing" | "Measurement Sheet" | "Correspondence" | "Other";
+
+export interface ProjectDocument {
+  id: ID;
+  projectId: ID;
+  name: string;
+  type: DocumentType;
+  size: number;
+  mimeType: string;
+  uploadedById: ID;
+  uploadedAt: ISODateTime;
+}
+
+export type ProjectionMethod = "performance" | "budget";
+
 export interface AppSettings {
   companyName: string;
   /** Monthly instrument usage charge as a % of purchase value. */
   instrumentMonthlyRatePct: number;
   /** Days before expected completion that triggers a deadline alert. */
   deadlineAlertDays: number;
+  /** Working hours in one man-day – converts idle man-hours to idle man-days. */
+  hoursPerManDay: number;
+  /** Overhead charged as a % of wages (demo assumption). */
+  overheadPctOfWages: number;
+  /** Management charges as a % of earned value (demo assumption). */
+  managementPctOfEarnedValue: number;
+  /** How remaining cost is projected. */
+  projectionMethod: ProjectionMethod;
+  /** Margin below which projected profit is flagged. */
+  targetMarginPct: number;
 }

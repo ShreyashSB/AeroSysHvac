@@ -17,9 +17,11 @@ import { Select } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/misc";
 import { EmployeeFormDialog } from "@/features/employees/EmployeeFormDialog";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { formatDate, formatINR, formatINRShort } from "@/lib/format";
+import { formatDate, formatINR } from "@/lib/format";
 import { todayISO } from "@/lib/dates";
-import { includesText, sum } from "@/lib/utils";
+import { includesText } from "@/lib/utils";
+
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 import type { Employee, EmployeeStatus } from "@/types/models";
 
 export function EmployeesPage() {
@@ -32,7 +34,7 @@ export function EmployeesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | undefined>();
   const canManage = can(user.role, "employee.manage");
-  const showSalary = can(user.role, "salary.view");
+  const showRates = can(user.role, "rates.view");
 
   const departments = [...new Set(data.employees.map((e) => e.department))].sort();
   const rows = useMemo(
@@ -65,7 +67,7 @@ export function EmployeesPage() {
     { key: "code", header: "Employee ID", sortValue: (e) => e.code, cell: (e) => <span className="text-muted-foreground">{e.code}</span> },
     { key: "dept", header: "Department", sortValue: (e) => e.department, cell: (e) => e.department, hideOnMobile: true },
     { key: "desig", header: "Designation", sortValue: (e) => e.designation, cell: (e) => e.designation },
-    ...(showSalary ? [{ key: "salary", header: "Salary / month", align: "right" as const, sortValue: (e: Employee) => e.monthlySalary, cell: (e: Employee) => <span className="tabular">{formatINR(e.monthlySalary)}</span> }] : []),
+    ...(showRates ? [{ key: "rate", header: "Daily cost", align: "right" as const, sortValue: (e: Employee) => e.dailyCost, cell: (e: Employee) => <span className="tabular">{formatINR(e.dailyCost)}<span className="text-xs text-muted-foreground"> /day</span></span> }] : []),
     { key: "join", header: "Joining date", sortValue: (e) => e.joiningDate, cell: (e) => formatDate(e.joiningDate), hideOnMobile: true },
     { key: "access", header: "System access", hideOnMobile: true, cell: (e) => { const r = roleOf(e.id); return r ? <Badge tone="info">{ROLE_LABELS[r]}</Badge> : <span className="text-xs text-muted-foreground">—</span>; } },
     { key: "status", header: "Status", sortValue: (e) => e.status, cell: (e) => <EmployeeStatusBadge status={e.status} /> },
@@ -89,7 +91,7 @@ export function EmployeesPage() {
       { header: "Name", value: (e) => e.name },
       { header: "Department", value: (e) => e.department },
       { header: "Designation", value: (e) => e.designation },
-      ...(showSalary ? [{ header: "Monthly salary (INR)", value: (e: Employee) => e.monthlySalary }] : []),
+      ...(showRates ? [{ header: "Daily cost (INR/day)", value: (e: Employee) => e.dailyCost }] : []),
       { header: "Joining date", value: (e) => e.joiningDate },
       { header: "Status", value: (e) => EMPLOYEE_STATUS[e.status].label },
     ]));
@@ -101,7 +103,7 @@ export function EmployeesPage() {
     <div>
       <PageHeader
         title="Employees"
-        description="Employee directory. Salaries are used as inputs for project labour costing — this is not a payroll system."
+        description="Employee directory. Each person's Daily Cost is the internal rate used to cost man-days on projects — this is not a payroll system."
         breadcrumbs={[{ label: "Dashboard", to: "/" }, { label: "Employees" }]}
         actions={
           <>
@@ -114,7 +116,14 @@ export function EmployeesPage() {
         <StatCard label="Employees in system" value={data.employees.length} loading={data.isLoading} />
         <StatCard label="Active" value={active.length} loading={data.isLoading} />
         <StatCard label="Site engineers & technicians" value={data.employees.filter((e) => e.isSiteEngineer).length} loading={data.isLoading} />
-        {showSalary && <StatCard label="Monthly salary cost" value={formatINRShort(sum(active, (e) => e.monthlySalary))} loading={data.isLoading} />}
+        {showRates && (
+          <StatCard
+            label="Avg. daily cost – site staff"
+            value={formatINR(avg(active.filter((e) => e.isSiteEngineer).map((e) => e.dailyCost)))}
+            hint="Internal costing rate per man-day"
+            loading={data.isLoading}
+          />
+        )}
       </div>
       <FilterBar onReset={filters.reset} showReset={filters.active}>
         <SearchInput value={f.q} onChange={(v) => filters.set("q", v)} placeholder="Search name, ID, email…" />

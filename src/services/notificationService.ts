@@ -3,6 +3,7 @@ import type { Database } from "@/api/seed";
 import { addDays, todayISO } from "@/lib/dates";
 import { uid } from "@/lib/utils";
 import type { AppNotification, User } from "@/types/models";
+import { projectProgress } from "./progressEvents";
 
 type NewNotification = Omit<AppNotification, "id" | "createdAt" | "readBy">;
 
@@ -49,33 +50,34 @@ export const notificationService = {
       const horizon = addDays(today, data.settings.deadlineAlertDays);
       for (const p of data.projects) {
         if (p.status !== "active") continue;
-        if (p.endDate >= today && p.endDate <= horizon && p.completion < 100) {
+        const completion = Math.round(projectProgress(data, p.id) * 100);
+        if (p.endDate >= today && p.endDate <= horizon && completion < 100) {
           pushNotification(data, {
             type: "project_deadline",
             title: "Project deadline approaching",
-            message: `${p.name} is due on ${p.endDate} and is ${p.completion}% complete.`,
+            message: `${p.name} is due on ${p.endDate} and is ${completion}% complete.`,
             link: `/projects/${p.id}`,
             audienceRoles: ["management"],
             audienceEmployeeIds: [p.managerId],
             dedupeKey: `deadline:${p.id}:${p.endDate}`,
           });
         }
-        if (p.endDate < today && p.completion < 100) {
+        if (p.endDate < today && completion < 100) {
           pushNotification(data, {
             type: "project_deadline",
             title: "Project overdue",
-            message: `${p.name} passed its expected completion date (${p.endDate}) at ${p.completion}%.`,
+            message: `${p.name} passed its expected completion date (${p.endDate}) at ${completion}%.`,
             link: `/projects/${p.id}`,
             audienceRoles: ["management"],
             audienceEmployeeIds: [p.managerId],
             dedupeKey: `overdue:${p.id}:${p.endDate}`,
           });
         }
-        if (p.completion >= 90 && p.completion < 100) {
+        if (completion >= 90 && completion < 100) {
           pushNotification(data, {
             type: "project_completion",
             title: "Project nearing completion",
-            message: `${p.name} has reached ${p.completion}% completion. Plan handover & final billing.`,
+            message: `${p.name} has reached ${completion}% completion. Plan handover & final billing.`,
             link: `/projects/${p.id}`,
             audienceRoles: ["management", "accounts"],
             audienceEmployeeIds: [p.managerId],

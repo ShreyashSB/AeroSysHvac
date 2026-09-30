@@ -21,7 +21,7 @@ type Values = {
   phone: string;
   department: Department;
   designation: string;
-  monthlySalary: string;
+  dailyCost: string;
   joiningDate: string;
   status: EmployeeStatus;
   isSiteEngineer: boolean;
@@ -34,7 +34,7 @@ const validate = (v: Values): Errors<Values> => {
   if (!v.name.trim()) e.name = "Name is required";
   if (!/^\S+@\S+\.\S+$/.test(v.email)) e.email = "Enter a valid email";
   if (!v.designation.trim()) e.designation = "Designation is required";
-  if (v.monthlySalary === "" || !(Number(v.monthlySalary) >= 0)) e.monthlySalary = "Enter monthly salary";
+  if (v.dailyCost === "" || !(Number(v.dailyCost) >= 0)) e.dailyCost = "Enter the daily cost rate";
   if (!v.joiningDate) e.joiningDate = "Joining date is required";
   return e;
 };
@@ -60,7 +60,7 @@ export function EmployeeFormDialog({
     phone: e?.phone ?? "",
     department: e?.department ?? "Engineering",
     designation: e?.designation ?? "",
-    monthlySalary: e ? String(e.monthlySalary) : "",
+    dailyCost: e ? String(e.dailyCost) : "",
     joiningDate: e?.joiningDate ?? todayISO(),
     status: e?.status ?? "active",
     isSiteEngineer: e?.isSiteEngineer ?? false,
@@ -80,7 +80,7 @@ export function EmployeeFormDialog({
       ...vals,
       name: vals.name.trim(),
       designation: vals.designation.trim(),
-      monthlySalary: Number(vals.monthlySalary),
+      dailyCost: Number(vals.dailyCost),
       appRole: vals.appRole || null,
     };
     const done = (msg: string) => () => {
@@ -132,8 +132,14 @@ export function EmployeeFormDialog({
           <Field label="Designation" htmlFor="e-desig" required error={errors.designation}>
             <Input id="e-desig" value={v.designation} onChange={(e) => set("designation", e.target.value)} placeholder="e.g. Site Engineer" aria-invalid={!!errors.designation} />
           </Field>
-          <Field label="Monthly salary / CTC (₹)" htmlFor="e-sal" required error={errors.monthlySalary} hint={v.monthlySalary ? `${formatINR(Number(v.monthlySalary))} · used for project labour costing` : "Used for project labour costing"}>
-            <Input id="e-sal" type="number" min={0} step={500} value={v.monthlySalary} onChange={(e) => set("monthlySalary", e.target.value)} aria-invalid={!!errors.monthlySalary} />
+          <Field
+            label="Daily cost (₹ / day)"
+            htmlFor="e-sal"
+            required
+            error={errors.dailyCost}
+            hint={`${v.dailyCost ? `${formatINR(Number(v.dailyCost))} per man-day · ` : ""}Internal project costing rate – not salary or CTC`}
+          >
+            <Input id="e-sal" type="number" min={0} step={50} value={v.dailyCost} onChange={(e) => set("dailyCost", e.target.value)} aria-invalid={!!errors.dailyCost} placeholder="e.g. 3500" />
           </Field>
           <Field label="Joining date" htmlFor="e-join" required error={errors.joiningDate}>
             <Input id="e-join" type="date" value={v.joiningDate} onChange={(e) => set("joiningDate", e.target.value)} />

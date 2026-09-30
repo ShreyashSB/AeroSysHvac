@@ -34,7 +34,7 @@ export function EngineersPage() {
   const [assigning, setAssigning] = useState<Employee | null>(null);
   const canManage = can(user.role, "engineer.manage");
   const canAssign = can(user.role, "project.assign");
-  const showSalary = can(user.role, "salary.view");
+  const showRates = can(user.role, "rates.view");
 
   const rows = useMemo(() => {
     return data.employees
@@ -72,7 +72,7 @@ export function EngineersPage() {
       ),
     },
     { key: "code", header: "Employee ID", sortValue: (r) => r.e.code, cell: (r) => <span className="text-muted-foreground">{r.e.code}</span>, hideOnMobile: true },
-    ...(showSalary ? [{ key: "salary", header: "Salary / month", align: "right" as const, sortValue: (r: Row) => r.e.monthlySalary, cell: (r: Row) => <span className="tabular">{formatINR(r.e.monthlySalary)}</span>, hideOnMobile: true }] : []),
+    ...(showRates ? [{ key: "rate", header: "Daily cost", align: "right" as const, sortValue: (r: Row) => r.e.dailyCost, cell: (r: Row) => <span className="tabular">{formatINR(r.e.dailyCost)}</span>, hideOnMobile: true }] : []),
     {
       key: "project",
       header: "Current project",

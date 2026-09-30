@@ -1,6 +1,6 @@
 import * as Popover from "@radix-ui/react-popover";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck, CheckCircle2, ClipboardList, Clock, FolderPlus, UserPlus, Wrench, XCircle, type LucideIcon } from "lucide-react";
+import { Bell, PauseCircle, CheckCheck, CheckCircle2, ClipboardList, Clock, FolderPlus, UserPlus, Wrench, XCircle, type LucideIcon } from "lucide-react";
 import { useCurrentUser } from "@/auth/AuthContext";
 import { useNotifications } from "@/hooks/queries";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "@/hooks/mutations";
@@ -19,6 +19,7 @@ const ICONS: Record<NotificationType, { icon: LucideIcon; cls: string }> = {
   project_deadline: { icon: Clock, cls: "bg-danger-soft text-danger" },
   project_completion: { icon: CheckCheck, cls: "bg-success-soft text-success" },
   project_created: { icon: FolderPlus, cls: "bg-info-soft text-info" },
+  idle_recorded: { icon: PauseCircle, cls: "bg-warning-soft text-warning" },
 };
 
 export function NotificationCenter() {

@@ -16,9 +16,10 @@ import { EmployeeFormDialog } from "@/features/employees/EmployeeFormDialog";
 import { AssignEngineerDialog } from "@/features/projects/AssignEngineerDialog";
 import { ExpenseTable } from "@/features/expenses/ExpenseTable";
 import { availabilityOf, engineerLoad } from "@/features/employees/availability";
-import { labourCostForAssignment } from "@/domain/costing";
-import { formatDate, formatINR } from "@/lib/format";
-import { sum } from "@/lib/utils";
+import { MAN_DAY_WEIGHT } from "@/domain/assumptions";
+import { addDays, todayISO } from "@/lib/dates";
+import { formatDate, formatINR, formatNumber, formatPct } from "@/lib/format";
+import { cn, sum } from "@/lib/utils";
 import { NotFoundPage } from "./StatusPages";
 
 export function EngineerDetailPage() {
@@ -35,11 +36,20 @@ export function EngineerDetailPage() {
 
   const assignments = data.assignments.filter((a) => a.employeeId === id).sort((a, b) => b.startDate.localeCompare(a.startDate));
   const { open, allocation } = engineerLoad(id, data.assignments);
-  const past = assignments.filter((a) => a.endDate);
   const expenses = data.expenses.filter((e) => e.employeeId === id);
   const instruments = data.instruments.filter((i) => i.assignedEngineerId === id);
   const avail = availabilityOf(emp, allocation);
-  const showSalary = can(user.role, "salary.view");
+  const showRates = can(user.role, "rates.view");
+  // Man-day usage per project, from the same engine as the project pages
+  const usage = data.projects
+    .map((p) => ({ p, u: data.perf.get(p.id)?.byEmployee.find((x) => x.employeeId === id) }))
+    .filter((x): x is { p: (typeof data.projects)[number]; u: NonNullable<typeof x.u> } => !!x.u)
+    .sort((a, b) => b.p.startDate.localeCompare(a.p.startDate));
+  const since30 = addDays(todayISO(), -30);
+  const md30 = data.dailyLogs
+    .filter((l) => l.date >= since30)
+    .reduce((acc, l) => acc + l.attendance.filter((a) => a.employeeId === id).reduce((x, a) => x + MAN_DAY_WEIGHT[a.status], 0), 0);
+  const idleAll = usage.reduce((acc, x) => acc + x.u.idleManDays, 0);
 
   return (
     <div>
@@ -80,9 +90,9 @@ export function EngineerDetailPage() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Current allocation" value={`${allocation}%`} hint={<Progress value={Math.min(allocation, 100)} className="mt-1" />} />
-        <StatCard label="Projects (all time)" value={new Set(assignments.map((a) => a.projectId)).size} />
+        <StatCard label="Man-days (last 30 days)" value={`${formatNumber(md30, 1)} MD`} hint={`${formatNumber(idleAll, 1)} idle MD across all projects`} />
         <StatCard label="Approved expenses" value={formatINR(sum(expenses.filter((e) => e.status === "approved"), (e) => e.amount))} hint={`${expenses.filter((e) => e.status === "pending").length} pending`} />
-        {showSalary ? <StatCard label="Monthly salary" value={formatINR(emp.monthlySalary)} hint="Used for labour costing" /> : <StatCard label="Instruments issued" value={instruments.length} />}
+        {showRates ? <StatCard label="Daily cost" value={`${formatINR(emp.dailyCost)} / day`} hint="Internal costing rate used for wages" /> : <StatCard label="Instruments issued" value={instruments.length} />}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
@@ -102,7 +112,7 @@ export function EngineerDetailPage() {
                     </div>
                     <Badge tone="info">{a.role}</Badge>
                     <Badge>{a.allocation}%</Badge>
-                    <div className="flex w-32 items-center gap-2"><Progress value={p.completion} /><span className="text-xs">{p.completion}%</span></div>
+                    <div className="flex w-32 items-center gap-2"><Progress value={(data.perf.get(p.id)?.progress ?? 0) * 100} /><span className="text-xs">{formatPct((data.perf.get(p.id)?.progress ?? 0) * 100, 0)}</span></div>
                   </Link>
                 );
               })
@@ -130,32 +140,41 @@ export function EngineerDetailPage() {
       </div>
 
       <Card className="mt-6">
-        <CardHeader><CardTitle>Project history</CardTitle></CardHeader>
+        <CardHeader>
+          <div>
+            <CardTitle>Project history & man-days</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">From daily work logs{showRates ? ` · wages at ${formatINR(emp.dailyCost)}/day` : ""}</p>
+          </div>
+        </CardHeader>
         <CardContent className="px-0">
-          {past.length === 0 ? (
-            <EmptyState title="No completed assignments yet" />
+          {usage.length === 0 ? (
+            <EmptyState title="No man-days logged yet" />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead className="text-xs uppercase text-muted-foreground">
                   <tr className="border-b">
                     <th className="px-5 py-2 text-left font-medium">Project</th>
                     <th className="px-3 py-2 text-left font-medium">Role</th>
-                    <th className="px-3 py-2 text-left font-medium">Period</th>
                     <th className="px-3 py-2 text-left font-medium">Status</th>
-                    {showSalary && <th className="px-5 py-2 text-right font-medium">Labour cost</th>}
+                    <th className="px-3 py-2 text-right font-medium">Days</th>
+                    <th className="px-3 py-2 text-right font-medium">Man-days</th>
+                    <th className="px-3 py-2 text-right font-medium">Idle MD</th>
+                    {showRates && <th className="px-5 py-2 text-right font-medium">Wages</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {past.map((a) => {
-                    const p = data.projectById.get(a.projectId);
+                  {usage.map(({ p, u }) => {
+                    const asg = assignments.find((a) => a.projectId === p.id);
                     return (
-                      <tr key={a.id}>
-                        <td className="px-5 py-2.5"><Link to={`/projects/${a.projectId}`} className="font-medium hover:text-primary hover:underline">{p?.name}</Link></td>
-                        <td className="px-3 py-2.5">{a.role} · {a.allocation}%</td>
-                        <td className="px-3 py-2.5 text-muted-foreground">{formatDate(a.startDate)} – {formatDate(a.endDate)}</td>
-                        <td className="px-3 py-2.5">{p && <ProjectStatusBadge status={p.status} />}</td>
-                        {showSalary && <td className="px-5 py-2.5 text-right tabular">{formatINR(labourCostForAssignment(a, emp.monthlySalary))}</td>}
+                      <tr key={p.id}>
+                        <td className="px-5 py-2.5"><Link to={`/projects/${p.id}?tab=log`} className="font-medium hover:text-primary hover:underline">{p.name}</Link></td>
+                        <td className="px-3 py-2.5">{asg?.role ?? "—"}{asg && !asg.endDate && <Badge tone="info" className="ml-2">Current</Badge>}</td>
+                        <td className="px-3 py-2.5"><ProjectStatusBadge status={p.status} /></td>
+                        <td className="px-3 py-2.5 text-right tabular">{u.days}</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular">{formatNumber(u.manDays, 1)}</td>
+                        <td className={cn("px-3 py-2.5 text-right tabular", u.idleManDays > 0 && "text-warning")}>{formatNumber(u.idleManDays, 1)}</td>
+                        {showRates && <td className="px-5 py-2.5 text-right tabular">{formatINR(u.wages)}</td>}
                       </tr>
                     );
                   })}

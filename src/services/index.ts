@@ -6,3 +6,6 @@ export { employeeService } from "./employeeService";
 export { projectCostService } from "./projectCostService";
 export { notificationService } from "./notificationService";
 export { settingsService } from "./settingsService";
+export { boqService } from "./boqService";
+export { dailyLogService } from "./dailyLogService";
+export { documentService } from "./documentService";

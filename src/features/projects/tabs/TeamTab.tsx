@@ -10,8 +10,8 @@ import { EmptyState } from "@/components/common/States";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { AssignEngineerDialog } from "@/features/projects/AssignEngineerDialog";
 import { useReleaseAssignment } from "@/hooks/mutations";
-import { labourCostForAssignment } from "@/domain/costing";
-import { formatDate, formatINR } from "@/lib/format";
+import type { ProjectPerformance } from "@/domain/performance";
+import { formatDate, formatINR, formatNumber } from "@/lib/format";
 import type { Employee, Project, ProjectAssignment } from "@/types/models";
 
 export function TeamTab({
@@ -20,7 +20,9 @@ export function TeamTab({
   employeeById,
   canAssign,
   showCost,
+  perf,
 }: {
+  perf: ProjectPerformance;
   project: Project;
   assignments: ProjectAssignment[];
   employeeById: Map<string, Employee>;
@@ -34,6 +36,7 @@ export function TeamTab({
   const past = assignments.filter((a) => a.endDate);
   const closed = project.status === "completed" || project.status === "archived";
   const manager = employeeById.get(project.managerId);
+  const usage = new Map(perf.byEmployee.map((u) => [u.employeeId, u]));
 
   return (
     <div className="space-y-6">
@@ -53,7 +56,7 @@ export function TeamTab({
           <EmptyState
             icon={<HardHat />}
             title="No engineers assigned"
-            description={closed ? "This project is closed." : "Assign site engineers to start tracking labour cost and progress."}
+            description={closed ? "This project is closed." : "Assign site engineers; their daily attendance is then recorded in the Daily Work Log."}
             action={canAssign && !closed ? <Button variant="outline" onClick={() => setOpen(true)}><UserPlus /> Assign engineer</Button> : undefined}
           />
         </Card>
@@ -78,7 +81,15 @@ export function TeamTab({
                 <div className="mt-3 flex items-end justify-between border-t pt-3 text-xs text-muted-foreground">
                   <div>
                     <p>Since {formatDate(a.startDate)}</p>
-                    {showCost && <p className="mt-0.5">Labour to date: <span className="font-medium text-foreground">{formatINR(labourCostForAssignment(a, e.monthlySalary))}</span></p>}
+                    <p className="mt-0.5">
+                      <span className="font-medium text-foreground">{formatNumber(usage.get(e.id)?.manDays ?? 0, 1)} MD</span> on this project
+                      {(usage.get(e.id)?.idleManDays ?? 0) > 0 && <span className="text-warning"> · {formatNumber(usage.get(e.id)!.idleManDays, 1)} idle</span>}
+                    </p>
+                    {showCost && (
+                      <p className="mt-0.5">
+                        {formatINR(e.dailyCost)}/day · wages <span className="font-medium text-foreground">{formatINR(usage.get(e.id)?.wages ?? 0)}</span>
+                      </p>
+                    )}
                   </div>
                   {canAssign && (
                     <Button variant="ghost" size="sm" className="text-danger" onClick={() => setReleasing(a)}>
@@ -104,8 +115,8 @@ export function TeamTab({
                     <Avatar name={e?.name ?? "?"} className="size-7 text-[10px]" /> {e?.name} <span className="text-muted-foreground">· {a.role}</span>
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(a.startDate)} – {formatDate(a.endDate)}
-                    {showCost && e && ` · ${formatINR(labourCostForAssignment(a, e.monthlySalary))}`}
+                    {formatDate(a.startDate)} – {formatDate(a.endDate)} · {formatNumber(usage.get(a.employeeId)?.manDays ?? 0, 1)} MD
+                    {showCost && ` · ${formatINR(usage.get(a.employeeId)?.wages ?? 0)}`}
                   </span>
                 </div>
               );
@@ -119,7 +130,7 @@ export function TeamTab({
         open={!!releasing}
         onOpenChange={(o) => !o && setReleasing(null)}
         title="Remove engineer from project?"
-        description={<>{employeeById.get(releasing?.employeeId ?? "")?.name} will be released from this project today. Labour cost already incurred remains on the project.</>}
+        description={<>{employeeById.get(releasing?.employeeId ?? "")?.name} will be released from this project today. Man-days and wages already logged remain on the project.</>}
         confirmLabel="Remove"
         destructive
         loading={release.isPending}

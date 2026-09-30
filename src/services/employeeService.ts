@@ -7,7 +7,7 @@ export type EmployeeInput = Omit<Employee, "id" | "code"> & { code?: string; app
 function validate(input: EmployeeInput) {
   if (!input.name.trim()) throw new ApiError("Name is required");
   if (!/^\S+@\S+\.\S+$/.test(input.email)) throw new ApiError("A valid email is required");
-  if (input.monthlySalary < 0) throw new ApiError("Salary cannot be negative");
+  if (!(input.dailyCost >= 0)) throw new ApiError("Daily cost cannot be negative");
 }
 
 function syncUser(users: User[], emp: Employee, role: Role | null) {

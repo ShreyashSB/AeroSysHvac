@@ -113,7 +113,7 @@ export function AssignEngineerDialog({
               ))}
             </Select>
           </Field>
-          <Field label="Allocation %" htmlFor="ae-alloc" required error={errors.allocation} hint="Share of time – drives labour cost">
+          <Field label="Allocation %" htmlFor="ae-alloc" required error={errors.allocation} hint="Planned share of time – used for availability">
             <Input id="ae-alloc" type="number" min={1} max={100} value={v.allocation} onChange={(e) => set("allocation", e.target.value)} aria-invalid={!!errors.allocation} />
           </Field>
           <Field label="Start date" htmlFor="ae-start" required error={errors.startDate}>
