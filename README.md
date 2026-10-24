@@ -1,170 +1,50 @@
-# Aerosys HVAC — Project Performance, Cost Control & Profitability (prototype)
+# Aerosys HVAC — Project Management System
 
-A functional web prototype of Aerosys HVAC's internal system. It is built to answer one question for management:
-
-> **Are we executing our projects efficiently, and are we actually making money on them?**
-
-It links four layers so that each one feeds the next:
+Project performance, cost control and profitability for Aerosys HVAC.
+This repo holds the whole system as a **monorepo**: several apps in one Git repository, installed and tested together.
 
 ```
-WORK ORDER → ANNEXURE / BOQ → EXECUTED QUANTITY → EXECUTED VALUE → PROGRESS → EARNED VALUE
-DAILY WORK LOGS → CONSUMED MAN-DAYS / IDLE DAYS → WAGES → RUNNING PPI
-WAGES + EXPENSES + OVERHEAD + INSTRUMENT + MANAGEMENT → COST TO DATE → PROJECTED FINAL COST → PROJECTED PROFIT
+apps/
+  web/     React app (the prototype UI) — what users see
+  api/     NestJS API + Drizzle + PostgreSQL — where data and rules live
+docs/
+  learn/   Step-by-step guides to every tool used here (start with 00)
 ```
 
-It runs entirely in the browser. Realistic sample data is seeded on first load and persisted to
-`localStorage`, so changes survive a refresh. No backend is required.
+New to React, NestJS, Drizzle or monorepos? Read **[docs/learn/00-start-here.md](docs/learn/00-start-here.md)** first.
 
-## Running it
+## Run it without installing anything (GitHub Codespaces)
 
-```bash
-npm install
-npm run dev        # http://localhost:5173
-npm run build      # type-check + production build into dist/
-npm run preview    # serve the production build
-```
+1. On GitHub: **Code -> Codespaces -> Create codespace on this branch**. A cloud machine with Node, pnpm, Docker and Postgres opens in your browser (free for personal accounts up to 120 core-hours a month).
+2. In its terminal:
 
-## Deploying to Vercel
+   ```bash
+   pnpm dev:api     # API on port 3000 -> /api/health
+   pnpm dev:web     # Web on port 5173 (open a second terminal)
+   ```
 
-The repo is ready for Vercel with no extra configuration (`vercel.json` is included):
+3. The **Ports** tab gives you a browser link for each.
 
-1. In Vercel, **Add New → Project** and import this GitHub repository.
-2. Vercel detects **Vite** automatically. The build command is `npm run build` and the output directory is `dist`.
-   Both are also pinned in `vercel.json`.
-3. Click **Deploy**.
+Stop the codespace when you finish (**Codespaces -> Stop**) so it does not use your free hours.
 
-Alternatively, from the command line: `npm i -g vercel && vercel` (preview) or `vercel --prod`.
+## Commands (from the repo root)
 
-Notes:
-- `vercel.json` rewrites every route to `index.html`, so deep links such as `/projects/prj_1` work when
-  the page is refreshed or opened directly.
-- Hashed files in `/assets` are served with long-lived cache headers.
-- Node 20.19+ is required (declared in `package.json` → `engines`). Vercel's default Node 22 works.
-- No environment variables are needed. `VITE_API_BASE_URL` is only relevant once a real backend is connected.
-- Each visitor's demo data lives in their own browser's localStorage, so data is not shared between users
-  or devices on the deployed site.
-
-To restore the original sample data, go to **Settings → Reset demo data**.
-
-## Demo walkthrough (about 10 minutes)
-
-1. **Sign in as Management.** The dashboard shows contract value, earned value, actual cost, projected
-   final cost and projected profit. Click **Projected profit** to see the portfolio P&L. **Attention required**
-   lists observations generated from the data, such as *"Apex Pharma … consumed 50% of allotted man-days but
-   is only 36% complete"*. The **Project financial health** table colour-codes every project; the
-   *At risk / Over budget / Below baseline* cards filter it.
-2. **Open *Phoenix Mall HVAC Retrofit*** (healthy). The Overview shows 12 health-coded KPIs. Click **PPI** or
-   **Running PPI** to see the equation behind each number. Click **Financial health** for the full P&L:
-   contract value → cost heads → cost to date → earned value → projected remaining cost → projected profit.
-3. **Annexure / BOQ tab.** On *Installation of Air Handling Unit*, choose **Update execution** and record
-   3 Nos. Return to Overview: progress, earned value and Running PPI have all moved.
-4. **New daily log.** The team is pre-filled from assignments. Mark one person **Idle** with the reason
-   *Site not ready*, add a work line against a BOQ item, and add a small expense. The preview shows the
-   man-days, idle days and work value the log will add. Save it, and consumed man-days, idle days, wages and
-   progress update.
-5. **Expenses tab → Approve** the expense you just added. Consumed expenses, cost to date and projected
-   profit update.
-6. **Performance tab** shows PPI vs Running PPI, plan vs actual (progress, man-days, expenses, cost),
-   cumulative earned value vs cost, man-day burn, and idle days by reason.
-7. **Employees → edit Vikram Patil → change Daily Cost.** Wages on every project he worked on are
-   re-priced immediately.
-8. **Compare the other projects:** *Orchid IT Park* (efficient: high progress, low man-days),
-   *GreenTech* (expenses running well ahead of progress), *Sunrise Tower* (high idle time),
-   *Apex Pharma* (low Running PPI), *Metro Hospital* (low projected margin), and *Blue Ridge* / *Horizon* (completed).
-9. **Switch roles** with the Demo role selector. A Site Engineer sees execution metrics but no wages,
-   costs or profit. A Project Manager only sees and logs their own projects.
-
-## Roles
-
-| Role | Can see / do |
+| Command | What it does |
 | --- | --- |
-| Management | Everything: all projects, costs, profit, daily cost rates, reports, approvals, BOQ, daily logs, settings |
-| Project Manager | Own projects: daily logs, BOQ/execution, engineer assignment, expense approval, instruments, costs |
-| Site Engineer | Assigned projects' execution metrics (progress, man-days, idle, PPI) but no wages, costs or profit; own expenses & instruments |
-| Accounts | All projects' costs and profitability, all expenses (view), employees and daily cost rates, financial reports |
+| `pnpm install` | Installs dependencies for every app |
+| `pnpm dev:web` / `pnpm dev:api` | Runs one app with live reload |
+| `pnpm build` / `pnpm typecheck` / `pnpm test` | Runs that script in every app |
+| `pnpm db:generate` | Writes a SQL migration after you change `apps/api/src/db/schema.ts` |
+| `pnpm db:migrate` | Applies pending migrations to `DATABASE_URL` |
+| `docker compose up --build` | Runs the API + Postgres in containers |
 
-Permissions live in `src/auth/permissions.ts`. The UI reads capability flags such as `can("expense.approve")`,
-and project rows are scoped per user by `scopeProjects()`.
+## Free hosting (development and demos)
 
-## Business rules & assumptions
-
-Every formula lives in **one place**: `src/domain/assumptions.ts`. Rules that Aerosys has not yet
-confirmed are marked `DEMO ASSUMPTION` there, and the adjustable ones can be changed in **Settings**
-without code. Components never re-implement formulas. They read results from `src/domain/performance.ts`
-and explanations from `src/domain/explain.ts`, so the calculation drawers can never disagree with the KPIs.
-
-| Metric | Formula | Status |
+| Piece | Service (free plan) | Notes |
 | --- | --- | --- |
-| PPI | Work Order Value ÷ Allotted Man-Days | Working hypothesis |
-| Progress | Σ(executed qty × rate) ÷ Σ(BOQ contract amount) — value-weighted | Demo model |
-| Earned value | Work Order Value × Progress | |
-| Running PPI | Earned Value ÷ Consumed Man-Days | Demo assumption |
-| Consumed man-days | On-site, off-site and idle entries = 1 MD each; weekly off, holiday and leave = 0 | |
-| Idle days | Σ idle person-days + partial idle hours ÷ *working hours per man-day* (Settings) | |
-| Wages | Consumed MD × employee **Daily Cost** (current rate; not derived from salary or CTC) | Demo assumption |
-| Expenses | Approved expenses only (pending ones are shown separately) | |
-| Overhead | *x*% of wages (Settings, default 20%) | Demo assumption |
-| Instrument charges | Purchase value × monthly rate × months deployed (Settings, default 3%) | Demo assumption |
-| Management charges | *x*% of earned value (Settings, default 3%) | Demo assumption |
-| Projected final cost | *Performance:* cost to date ÷ progress, or *budget:* cost to date + budget × (1 − progress) (Settings). Uses the budget method below 10% progress. | Estimate |
-| Plan to date | Linear between start and expected completion (drives expected progress and planned MD/expenses) | Demo assumption |
+| Database | [Neon](https://neon.tech) Postgres | 0.5 GB; pick the Singapore region |
+| API | [Render](https://render.com) web service from `render.yaml` | Docker build; sleeps after 15 min idle, ~1 min to wake |
+| Web | [Vercel](https://vercel.com) Hobby, root directory `apps/web` | Fine for development; Hobby is not for commercial production use |
 
-**KPI colours** (green = healthy, amber = needs attention, red = concerning, neutral = informational) use
-thresholds in `HEALTH_THRESHOLDS` (same file) plus the target margin in Settings. Consumption metrics are
-judged against progress. For example, having used 58% of the man-days at 64% progress is healthy.
-
-## Architecture
-
-```
-src/
-  types/models.ts        Domain model: User, Employee, Project, ProjectAssignment, BoqItem, BoqExecution,
-                         DailyLog (+ attendance), Expense, Instrument, ProjectInstrument, ProjectCost,
-                         ProjectDocument, AppNotification, AppSettings
-  api/
-    seed.ts              Realistic, internally consistent sample data (dates relative to today)
-    mockDb.ts            localStorage "database" + simulated network latency
-    http.ts              Stub HTTP client for the future REST backend
-  services/              Data-access layer, one module per resource (REST-shaped, async)
-  domain/
-    assumptions.ts       ALL business formulas, demo assumptions & health thresholds
-    performance.ts       Project/portfolio engine: BOQ → progress → EV, logs → MD/idle/wages, costs, projection
-    health.ts            Green / amber / red / neutral classification of KPIs
-    explain.ts           Equation-style "how is this calculated" for each key metric
-    insights.ts          "Attention required" observations
-  auth/                  Session, demo role switching, permissions & row-level scoping
-  hooks/
-    queries.ts           TanStack Query hooks per resource
-    mutations.ts         Mutations with cache invalidation + error toasts
-    useAppData.ts        Joins resources and derives financials for the UI
-  components/
-    ui/                  Button, Input/Select, Dialog/Drawer, Tabs, Dropdown, Badge, Card…
-    common/              DataTable (sort + paging), filters, empty/error states, confirm dialog…
-    layout/              App shell, collapsible sidebar, top bar, global search, notification center
-  features/              Forms and widgets per module (projects, expenses, instruments, employees, dashboard)
-  pages/                 Route-level pages (code-split)
-```
-
-**Tech:** React 19, TypeScript, Vite, Tailwind CSS v4, Radix UI primitives (shadcn-style components),
-TanStack Query, React Router, Recharts, Sonner toasts, lucide icons.
-
-### Connecting a real backend
-
-Components never touch storage directly. They go through `src/services/*`, whose methods already match REST endpoints:
-
-| Service method | Endpoint |
-| --- | --- |
-| `projectService.list / get / create / update / remove` | `GET/POST /api/projects`, `GET/PUT/DELETE /api/projects/:id` |
-| `assignmentService.assign / release` | `POST /api/projects/:id/assignments`, `DELETE /api/assignments/:id` |
-| `boqService.createItem / addExecution / closePeriod` | `POST /api/projects/:id/boq-items`, `POST /api/boq-items/:id/executions`, … |
-| `dailyLogService.save / remove` | `POST /api/projects/:id/daily-logs`, `PUT/DELETE /api/daily-logs/:id` |
-| `expenseService.create / approve / reject` | `POST /api/expenses`, `POST /api/expenses/:id/approve`, `…/reject` |
-| `instrumentService.assign / returnInstrument / setStatus` | `POST /api/instruments/:id/assign`, `…/return`, `PATCH …/status` |
-
-To connect a backend, replace each method body with a call through `src/api/http.ts`. For example,
-`list: () => http.get<Project[]>("/api/projects")`. Pages, forms and hooks stay as they are.
-Business side effects that currently run in the mock services, such as notifications and closing
-assignments when a project completes, would move to the server.
-
-## Out of scope for Phase 1
-
-Payroll, GST/tax, full accounting, procurement/inventory ERP, CRM, advanced HR, native mobile apps and AI features.
+Step-by-step setup: [docs/learn/05-docker-and-deploy.md](docs/learn/05-docker-and-deploy.md).
+Production later moves to AWS Mumbai (see the build plan).
