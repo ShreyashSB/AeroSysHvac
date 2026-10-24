@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "vite",
-  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @aerosys/web build",
+  "outputDirectory": "apps/web/dist",
   "rewrites": [
     {
       "source": "/(.*)",

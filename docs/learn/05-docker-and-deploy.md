@@ -51,7 +51,7 @@ Free plan: the service sleeps after 15 minutes without requests; the first reque
 ### 3. Web: Vercel
 
 1. [vercel.com](https://vercel.com) -> **Add New -> Project** -> import this repository.
-2. Set **Root Directory** to `apps/web`. Vercel detects Vite and pnpm.
+2. Leave **Root Directory** empty. The root `vercel.json` tells Vercel to install the whole workspace with pnpm, build only `@aerosys/web`, and publish `apps/web/dist`.
 3. Deploy. Every push to a branch gets its own preview URL.
 
 Vercel's free Hobby plan is for non-commercial use, so it is right for development and demos. Production moves to AWS Mumbai with the same Docker image.

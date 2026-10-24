@@ -29,8 +29,9 @@ The app still runs on its own mock data in localStorage; screens move to the rea
 
 ## Deploying to Vercel
 
-In Vercel: **Add New -> Project**, import the repo and set **Root Directory** to `apps/web`.
-Vercel detects Vite and pnpm. `vercel.json` rewrites every route to `index.html` so deep links work.
+In Vercel: **Add New -> Project** and import the repo, leaving Root Directory empty.
+The root `vercel.json` installs the workspace with pnpm, builds this app and serves `apps/web/dist`,
+rewriting every route to `index.html` so deep links work.
 Set `VITE_API_BASE_URL` once screens start calling the API.
 
 ## Demo walkthrough (about 10 minutes)
