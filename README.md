@@ -168,3 +168,9 @@ assignments when a project completes, would move to the server.
 ## Out of scope for Phase 1
 
 Payroll, GST/tax, full accounting, procurement/inventory ERP, CRM, advanced HR, native mobile apps and AI features.
+
+## Views and themes
+
+Use the palette icon in the top bar, or **Settings → Appearance**, to switch theme (Light, Dark, Sunlight,
+Match device), view (Classic, Top bar, Field) and size. See [docs/APPEARANCE.md](docs/APPEARANCE.md) for
+what each option is for and how it's built.
