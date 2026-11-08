@@ -20,6 +20,7 @@ export function KpiCard({
   loading,
   className,
   size = "md",
+  emphasis,
 }: {
   label: string;
   value: ReactNode;
@@ -29,12 +30,14 @@ export function KpiCard({
   loading?: boolean;
   className?: string;
   size?: "md" | "lg";
+  /** The one tile on a screen that most needs attention. Only the Studio style draws it differently (dark card). */
+  emphasis?: boolean;
 }) {
   const tone = health?.tone ?? "neutral";
   const c = TONE_CLASSES[tone];
   const Comp = onClick ? "button" : "div";
   return (
-    <Card className={cn("relative overflow-hidden border-l-4 text-left", c.border, onClick && "transition-shadow hover:shadow-md", className)}>
+    <Card data-emphasis={emphasis || undefined} className={cn("relative overflow-hidden border-l-4 text-left", c.border, onClick && "transition-shadow hover:shadow-md", className)}>
       <Comp
         {...(onClick ? { type: "button" as const, onClick, "aria-label": `${label} – show calculation` } : {})}
         className={cn("group block h-full w-full p-4 text-left", onClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
@@ -46,7 +49,7 @@ export function KpiCard({
         {loading ? (
           <Skeleton className="mt-2 h-7 w-24" />
         ) : (
-          <p className={cn("mt-1 whitespace-nowrap font-semibold tracking-tight tabular", size === "lg" ? "text-2xl" : "text-xl", tone !== "neutral" && c.text)}>{value}</p>
+          <p data-slot="metric" className={cn("mt-1 whitespace-nowrap font-semibold tracking-tight tabular", size === "lg" ? "text-2xl" : "text-xl", tone !== "neutral" && c.text)}>{value}</p>
         )}
         {!loading && (sub || (health && health.label)) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

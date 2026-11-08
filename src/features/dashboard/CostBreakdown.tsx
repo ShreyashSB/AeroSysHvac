@@ -3,6 +3,8 @@ import { ChevronRight } from "lucide-react";
 import type { CostHeads } from "@/domain/performance";
 import { formatINR, formatINRShort, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useStudio } from "@/appearance/AppearanceContext";
+import { Ribbon, SEQUENTIAL } from "@/components/charts/studio";
 
 export type CostHead = Exclude<keyof CostHeads, "total">;
 
@@ -25,9 +27,17 @@ export function CostBreakdown({ costs, onSelect, budget }: { costs: CostHeads; o
   const heads = COST_HEADS.filter((h) => h.key !== "other" || costs.other > 0);
   const max = Math.max(1, ...heads.map((h) => costs[h.key]));
   const total = costs.total || 1;
+  const studio = useStudio();
+  // Studio colours each head by its fixed position in COST_HEADS, so a head keeps its colour across projects.
+  const colorOf = (key: CostHead) => SEQUENTIAL[COST_HEADS.findIndex((h) => h.key === key)] ?? SEQUENTIAL[SEQUENTIAL.length - 1];
 
   return (
     <div>
+      {studio && (
+        <div className="mb-3">
+          <Ribbon parts={heads.map((h) => ({ key: h.key, label: h.label, value: costs[h.key], color: colorOf(h.key) }))} hover={hover} onHover={(k) => setHover(k as CostHead | null)} />
+        </div>
+      )}
       <table className="w-full text-sm">
         <thead className="text-xs text-muted-foreground">
           <tr className="border-b">
@@ -53,14 +63,17 @@ export function CostBreakdown({ costs, onSelect, budget }: { costs: CostHeads; o
                 title={`${h.label}: ${formatINR(v)} (${formatPct((v / total) * 100)} of cost to date)`}
               >
                 <td className="py-2.5 pr-3">
-                  <p className="font-medium">{h.label}</p>
+                  <p className="flex items-center gap-2 font-medium">
+                    {studio && <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: colorOf(h.key) }} />}
+                    {h.label}
+                  </p>
                   <p className="hidden text-xs text-muted-foreground md:block">{h.hint}</p>
                 </td>
                 <td className="hidden py-2.5 pr-4 sm:table-cell">
-                  <div className="h-2.5 w-full rounded-sm bg-muted">
+                  <div className={cn("h-2.5 w-full", studio ? "rounded-full" : "rounded-sm bg-muted")} style={studio ? { background: "var(--studio-track)" } : undefined}>
                     <div
-                      className={cn("h-full rounded-r-[4px] transition-opacity", hover && hover !== h.key ? "opacity-40" : "opacity-100")}
-                      style={{ width: `${(v / max) * 100}%`, background: "var(--color-series-1)" }}
+                      className={cn("h-full transition-opacity", studio ? "rounded-full" : "rounded-r-[4px]", hover && hover !== h.key ? "opacity-40" : "opacity-100")}
+                      style={{ width: `${(v / max) * 100}%`, background: studio ? colorOf(h.key) : "var(--color-series-1)" }}
                     />
                   </div>
                 </td>

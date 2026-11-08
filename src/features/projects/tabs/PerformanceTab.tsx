@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Calculator } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HealthBadge } from "@/components/common/Health";
@@ -11,6 +11,8 @@ import { parseISODate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { Project } from "@/types/models";
 import type { MetricKey } from "../explainers";
+import { useStudio } from "@/appearance/AppearanceContext";
+import { Gauge, Track, studioTooltipItemStyle, studioTooltipLabelStyle, studioTooltipStyle } from "@/components/charts/studio";
 
 const shortDate = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" });
 
@@ -36,6 +38,7 @@ export function PerformanceTab({
 
   // Scale for the PPI gauge
   const scaleMax = Math.max(p.ppi, p.runningPpi) * 1.25 || 1;
+  const studio = useStudio();
 
   const planRows: Array<{ label: string; planned: number; actual: number; fmt: (n: number) => string; health: Health; note: string; lowerIsBetter: boolean; key?: MetricKey }> = [
     { label: "Progress", planned: p.expectedProgress * 100, actual: p.progress * 100, fmt: (n) => formatPct(n), health: progressHealth(p, project), note: "Linear plan to date vs BOQ execution", lowerIsBetter: false, key: "progress" },
@@ -67,7 +70,18 @@ export function PerformanceTab({
               <Metric label="Variance" value={p.consumedManDays ? `${p.ppiVariance >= 0 ? "+" : "−"}${formatPerMd(Math.abs(p.ppiVariance))}` : "—"} tone={rPpiH} />
               <Metric label="Variance %" value={p.consumedManDays ? `${p.ppiVariancePct >= 0 ? "+" : ""}${formatPct(p.ppiVariancePct)}` : "—"} tone={rPpiH} />
             </dl>
-            {p.consumedManDays > 0 && (
+            {p.consumedManDays > 0 && studio && (
+              <Gauge
+                value={p.runningPpi}
+                baseline={p.ppi}
+                max={scaleMax}
+                toneClass={TONE_CLASSES[rPpiH.tone].text}
+                valueLabel={formatINRShort(p.runningPpi)}
+                caption="Running PPI per man-day"
+                baselineLabel={`Baseline ${formatINRShort(p.ppi)}`}
+              />
+            )}
+            {p.consumedManDays > 0 && !studio && (
               <div aria-hidden>
                 <div className="relative h-8">
                   <div className="absolute inset-x-0 top-3 h-2 rounded-full bg-muted" />
@@ -112,6 +126,20 @@ export function PerformanceTab({
                       <HealthBadge health={r.health} />
                     </span>
                   </div>
+                  {studio ? (
+                    <div className="space-y-1.5">
+                      <Track
+                        value={r.actual / max}
+                        target={r.planned / max}
+                        barClass={TONE_CLASSES[r.health.tone === "neutral" ? "neutral" : r.health.tone].dot}
+                        label={`Actual ${r.fmt(r.actual)}, planned ${r.fmt(r.planned)}`}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground tabular">
+                        <span>Actual <span className="font-medium text-foreground">{r.fmt(r.actual)}</span> ({diff >= 0 ? "+" : "−"}{r.fmt(Math.abs(diff))})</span>
+                        <span>Planned {r.fmt(r.planned)}</span>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-[4.5rem_1fr_6rem] items-center gap-x-3 gap-y-1 text-xs">
                     <span className="text-muted-foreground">Planned</span>
                     <span className="h-2.5 rounded-sm bg-muted"><span className="block h-full rounded-r-[4px] bg-muted-foreground/40" style={{ width: `${(r.planned / max) * 100}%` }} /></span>
@@ -125,6 +153,7 @@ export function PerformanceTab({
                       </span>
                     </span>
                   </div>
+                  )}
                 </div>
               );
             })}
@@ -211,7 +240,11 @@ export function PerformanceTab({
               {reasons.map(([r, v]) => (
                 <li key={r} className="grid grid-cols-[11rem_1fr_5rem] items-center gap-3">
                   <span className="text-muted-foreground">{r}</span>
-                  <span className="h-2.5 rounded-sm bg-muted"><span className="block h-full rounded-r-[4px] bg-warning" style={{ width: `${((v ?? 0) / maxReason) * 100}%` }} /></span>
+                  {studio ? (
+                    <Track value={(v ?? 0) / maxReason} barClass="bg-warning" />
+                  ) : (
+                    <span className="h-2.5 rounded-sm bg-muted"><span className="block h-full rounded-r-[4px] bg-warning" style={{ width: `${((v ?? 0) / maxReason) * 100}%` }} /></span>
+                  )}
                   <span className="text-right tabular">{formatNumber(v ?? 0, 1)} MD</span>
                 </li>
               ))}
@@ -261,6 +294,8 @@ function TrendChart({
   tipFmt: (n: number) => string;
   dashedA?: boolean;
 }) {
+  const studio = useStudio();
+  if (studio) return <StudioTrendChart data={data} a={a} b={b} fmt={fmt} tipFmt={tipFmt} dashedA={dashedA} />;
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer>
@@ -277,6 +312,87 @@ function TrendChart({
           <Line type="monotone" dataKey={a.key} stroke="var(--color-series-1)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} animationDuration={500} strokeDasharray={dashedA ? "5 4" : undefined} />
           <Line type="monotone" dataKey={b.key} stroke="var(--color-series-2)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} animationDuration={500} />
         </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/**
+ * Studio drawing of the same trend: the "actual" series (b) as a smooth line over a soft gradient fill,
+ * the comparison series (a) as a plain line (dashed when it is a plan). Same data, axes and tooltip values.
+ */
+function StudioTrendChart({
+  data,
+  a,
+  b,
+  fmt,
+  tipFmt,
+  dashedA,
+}: {
+  data: SeriesPoint[];
+  a: { key: keyof SeriesPoint; label: string };
+  b: { key: keyof SeriesPoint; label: string };
+  fmt: (n: number) => string;
+  tipFmt: (n: number) => string;
+  dashedA?: boolean;
+}) {
+  const gid = `studio-fill-${String(b.key)}`;
+  const last = data.length - 1;
+  // Same colours as the standard chart: a is series 1, b is series 2. When a is a dashed plan line,
+  // the actual series (b) takes series 1 instead. The series-1 line gets the soft fill and the end dot.
+  const aColor = dashedA ? "var(--color-muted-foreground)" : "var(--color-series-1)";
+  const bColor = dashedA ? "var(--color-series-1)" : "var(--color-series-2)";
+  const filled = dashedA ? b.key : a.key;
+  const endDot = (props: { cx?: number; cy?: number; index?: number }) =>
+    props.index === last && props.cx != null && props.cy != null ? (
+      <circle key="end" cx={props.cx} cy={props.cy} r={5} fill="var(--color-series-1)" stroke="var(--color-surface)" strokeWidth={2} />
+    ) : (
+      <g key={props.index} />
+    );
+  return (
+    <div className="h-64 w-full">
+      <ResponsiveContainer>
+        <AreaChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-series-1)" stopOpacity={0.32} />
+              <stop offset="100%" stopColor="var(--color-series-1)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 4" />
+          <XAxis dataKey="date" tickFormatter={(d) => shortDate.format(parseISODate(d))} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={24} />
+          <YAxis tickFormatter={(v) => fmt(Number(v))} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} width={64} />
+          <Tooltip
+            formatter={(v, n) => [tipFmt(Number(v)), n === a.key ? a.label : b.label]}
+            labelFormatter={(d) => formatDate(String(d))}
+            contentStyle={studioTooltipStyle}
+            labelStyle={studioTooltipLabelStyle}
+            itemStyle={studioTooltipItemStyle}
+            cursor={{ stroke: "var(--color-muted-foreground)", strokeDasharray: "3 3" }}
+          />
+          <Legend formatter={(v) => <span className="text-xs text-foreground">{v === a.key ? a.label : b.label}</span>} iconType={dashedA ? "plainline" : "circle"} iconSize={9} />
+          <Area
+            type="monotone"
+            dataKey={a.key}
+            stroke={aColor}
+            strokeWidth={dashedA ? 2 : 2.5}
+            strokeDasharray={dashedA ? "5 5" : undefined}
+            fill={filled === a.key ? `url(#${gid})` : "none"}
+            dot={filled === a.key ? endDot : false}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--color-surface)" }}
+            animationDuration={500}
+          />
+          <Area
+            type="monotone"
+            dataKey={b.key}
+            stroke={bColor}
+            strokeWidth={filled === b.key ? 2.5 : 2}
+            fill={filled === b.key ? `url(#${gid})` : "none"}
+            dot={filled === b.key ? endDot : false}
+            activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--color-surface)" }}
+            animationDuration={500}
+          />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
