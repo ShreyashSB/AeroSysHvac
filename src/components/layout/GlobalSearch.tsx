@@ -109,6 +109,7 @@ export function GlobalSearch() {
           else if (e.key === "Escape") inputRef.current?.blur();
         }}
         placeholder="Search projects, people, instruments, expenses…"
+        data-slot="search"
         className="h-9 w-full rounded-md border border-input bg-muted/50 pl-9 pr-14 text-sm placeholder:text-muted-foreground focus:bg-surface focus:outline-none focus:ring-2 focus:ring-ring/30"
         aria-label="Global search"
       />

@@ -29,6 +29,8 @@ import { daysBetween, todayISO } from "@/lib/dates";
 import { formatDate, formatINR, formatINRShort, formatNumber, formatPct, formatPerMd } from "@/lib/format";
 import { cn, sum } from "@/lib/utils";
 import type { Project } from "@/types/models";
+import { useStudio } from "@/appearance/AppearanceContext";
+import { DumbbellChart } from "@/components/charts/studio";
 
 export function DashboardPage() {
   const { user } = useCurrentUser();
@@ -47,6 +49,7 @@ function PortfolioDashboard() {
   const { user, employee } = useCurrentUser();
   const data = useScopedData();
   const navigate = useNavigate();
+  const studio = useStudio();
   const [createOpen, setCreateOpen] = useState(false);
   const [pnlOpen, setPnlOpen] = useState(false);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
@@ -242,7 +245,7 @@ function PortfolioDashboard() {
           <KpiCard label="Expense utilisation" value={formatPct(s.expenseUtilisation * 100, 0)} health={expH} sub={`${formatINRShort(s.consumedExpenses)} of ${formatINRShort(s.allottedExpenses)}`} loading={isLoading} />
         )}
         <KpiCard label="Project completion" value={formatPct(s.progress * 100, 0)} sub={`${s.activeCount} active · ${s.completedCount} completed`} loading={isLoading} />
-        <CountCard label="Projects at risk" count={atRisk.length} active={filter === "risk"} onClick={() => setFilter(filter === "risk" ? "all" : "risk")} loading={isLoading} />
+        <CountCard label="Projects at risk" emphasis count={atRisk.length} active={filter === "risk"} onClick={() => setFilter(filter === "risk" ? "all" : "risk")} loading={isLoading} />
         <CountCard label="Over budget" count={overBudget.length} active={filter === "budget"} onClick={() => setFilter(filter === "budget" ? "all" : "budget")} loading={isLoading} />
         <CountCard label="Below PPI baseline" count={lowPpi.length} active={filter === "ppi"} onClick={() => setFilter(filter === "ppi" ? "all" : "ppi")} loading={isLoading} />
       </section>
@@ -330,6 +333,14 @@ function PortfolioDashboard() {
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-80" />
+              ) : studio ? (
+                <>
+                  <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: "var(--color-series-1)" }} />Earned value</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: "var(--color-series-2)" }} />Cost to date</span>
+                  </div>
+                  <DumbbellChart rows={chartRows} fmt={formatINRShort} tipFmt={formatINR} />
+                </>
               ) : (
                 <div className="h-80 w-full">
                   <ResponsiveContainer>
@@ -409,7 +420,7 @@ function PortfolioDashboard() {
   );
 }
 
-function CountCard({ label, count, active, onClick, loading }: { label: string; count: number; active: boolean; onClick: () => void; loading?: boolean }) {
+function CountCard({ label, count, active, onClick, loading, emphasis }: { label: string; count: number; active: boolean; onClick: () => void; loading?: boolean; emphasis?: boolean }) {
   const h: Health = count === 0 ? { tone: "good", label: "None" } : { tone: count > 2 ? "bad" : "warn", label: active ? "Filtered below" : "Show in table" };
   return (
     <KpiCard
@@ -418,6 +429,7 @@ function CountCard({ label, count, active, onClick, loading }: { label: string; 
       health={h}
       onClick={onClick}
       loading={loading}
+      emphasis={emphasis && count > 0}
       className={cn(active && "ring-2 ring-primary")}
     />
   );
