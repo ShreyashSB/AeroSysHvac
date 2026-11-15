@@ -40,6 +40,9 @@
   --color-series-2: #eb6834;
   --color-series-3: #1baf7a;
 
+  /* parts of a whole ("What we are spending on"): one blue, strongest first */
+  --color-seq-1: #1f5fae; --color-seq-2: #3d82d6; --color-seq-3: #79aeea; --color-seq-4: #a9cbf2; --color-seq-5: #c9def6; --color-seq-6: #e1ecf9;
+
   --animate-in: fade-in 0.15s ease-out;
   --animate-slide-in: slide-in 0.2s ease-out;
 }
@@ -84,6 +87,7 @@
   --color-series-1: #4f94e6;
   --color-series-2: #f07c4e;
   --color-series-3: #2cc28c;
+  --color-seq-1: #8cbcf2; --color-seq-2: #5c9ee8; --color-seq-3: #3a78c2; --color-seq-4: #2c5f9c; --color-seq-5: #244d7e; --color-seq-6: #1d3d63;
 }
 
 /* High contrast for phones used outdoors in bright sun: near-black text, darker accents, borders you can see. */
@@ -117,6 +121,7 @@
   --color-series-1: #1f5fb0;
   --color-series-2: #c4501f;
   --color-series-3: #0d7f56;
+  --color-seq-1: #0b3d7a; --color-seq-2: #1f5fb0; --color-seq-3: #4f86cc; --color-seq-4: #86ade0; --color-seq-5: #b3cdee; --color-seq-6: #d6e4f6;
 }
 [data-theme="sunlight"] body { font-weight: 500; }
 
@@ -125,7 +130,8 @@
  * theme: on laptops the side menu and the page float as rounded panels on a soft blue ground, cards
  * lose their borders for a soft shadow, buttons/tabs become pills and big numbers use a lighter,
  * tighter face. Components opt in through data-slot attributes (data-slot="card", "button", ...),
- * so the standard style is untouched. Charts read useStudio() to switch their drawing.
+ * so the standard style is untouched. Charts are drawn the same in every style; Studio only
+ * changes the look and feel around them.
  * ---------------------------------------------------------------------------------------------- */
 [data-style="studio"] {
   --font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -134,8 +140,6 @@
   --studio-ink: #0d1626;
   --studio-emphasis: #0d1626;
   --studio-ink-foreground: #eef2f7;
-  --studio-track: #edf1f6;
-  --seq-1: #1f5fae; --seq-2: #3d82d6; --seq-3: #79aeea; --seq-4: #a9cbf2; --seq-5: #c9def6; --seq-6: #e1ecf9;
   --color-background: #f4f6f9;
   --color-border: #e6eaf0;
   --color-sidebar: #0d1626;
@@ -147,8 +151,6 @@
   --studio-ink: #5aa5f0;
   --studio-emphasis: #1f3a63;
   --studio-ink-foreground: #06121f;
-  --studio-track: #1d2a42;
-  --seq-1: #8cbcf2; --seq-2: #5c9ee8; --seq-3: #3a78c2; --seq-4: #2c5f9c; --seq-5: #244d7e; --seq-6: #1d3d63;
   --color-background: #0f1829;
   --color-surface: #15213a;
   --color-border: #24334e;
@@ -159,8 +161,6 @@
   --studio-ground: #e6edf6;
   --studio-ink: #00152b;
   --studio-emphasis: #00152b;
-  --studio-track: #e3e8ef;
-  --seq-1: #0b3d7a; --seq-2: #1f5fb0; --seq-3: #4f86cc; --seq-4: #86ade0; --seq-5: #b3cdee; --seq-6: #d6e4f6;
   --color-background: #ffffff;
   --color-border: #9aa3b1;
   --color-sidebar: #00152b;

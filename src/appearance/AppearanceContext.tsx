@@ -134,8 +134,3 @@ export function useAppearance() {
   if (!ctx) throw new Error("useAppearance must be used inside <AppearanceProvider>");
   return ctx;
 }
-
-/** True when the Studio style is on. Charts use it to switch to their Studio drawing. */
-export function useStudio() {
-  return useAppearance().style === "studio";
-}

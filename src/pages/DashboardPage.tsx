@@ -29,8 +29,7 @@ import { daysBetween, todayISO } from "@/lib/dates";
 import { formatDate, formatINR, formatINRShort, formatNumber, formatPct, formatPerMd } from "@/lib/format";
 import { cn, sum } from "@/lib/utils";
 import type { Project } from "@/types/models";
-import { useStudio } from "@/appearance/AppearanceContext";
-import { DumbbellChart } from "@/components/charts/studio";
+
 
 export function DashboardPage() {
   const { user } = useCurrentUser();
@@ -49,7 +48,6 @@ function PortfolioDashboard() {
   const { user, employee } = useCurrentUser();
   const data = useScopedData();
   const navigate = useNavigate();
-  const studio = useStudio();
   const [createOpen, setCreateOpen] = useState(false);
   const [pnlOpen, setPnlOpen] = useState(false);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
@@ -333,14 +331,6 @@ function PortfolioDashboard() {
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-80" />
-              ) : studio ? (
-                <>
-                  <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: "var(--color-series-1)" }} />Earned value</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: "var(--color-series-2)" }} />Cost to date</span>
-                  </div>
-                  <DumbbellChart rows={chartRows} fmt={formatINRShort} tipFmt={formatINR} />
-                </>
               ) : (
                 <div className="h-80 w-full">
                   <ResponsiveContainer>
