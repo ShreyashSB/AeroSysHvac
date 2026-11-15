@@ -16,7 +16,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-/** "standard" is the original design; "studio" is the softer look with floating panels, pill buttons and smoother charts. */
+/** "standard" is the original design; "studio" is the softer look with floating panels, rounded cards and pill buttons. */
 export type Style = "standard" | "studio";
 export type ThemePref = "system" | "light" | "dark" | "sunlight";
 export type ResolvedTheme = Exclude<ThemePref, "system">;
@@ -37,7 +37,7 @@ const STORAGE_KEY = "aerosys.appearance";
 /** Labels and one-line descriptions, shared by the quick switcher in the top bar and the Settings page. */
 export const STYLE_OPTIONS: Array<{ value: Style; label: string; hint: string }> = [
   { value: "standard", label: "Standard", hint: "The original design" },
-  { value: "studio", label: "Studio", hint: "Floating panels, rounded cards and smoother charts" },
+  { value: "studio", label: "Studio", hint: "Floating panels, rounded cards and pill buttons" },
 ];
 
 export const THEME_OPTIONS: Array<{ value: ThemePref; label: string; hint: string }> = [
