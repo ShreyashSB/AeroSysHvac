@@ -30,6 +30,7 @@ import { formatDate, formatINR, formatINRShort, formatNumber, formatPct, formatP
 import { cn, sum } from "@/lib/utils";
 import type { Project } from "@/types/models";
 
+
 export function DashboardPage() {
   const { user } = useCurrentUser();
   return user.role === "site_engineer" ? <EngineerDashboard /> : <PortfolioDashboard />;
@@ -242,7 +243,7 @@ function PortfolioDashboard() {
           <KpiCard label="Expense utilisation" value={formatPct(s.expenseUtilisation * 100, 0)} health={expH} sub={`${formatINRShort(s.consumedExpenses)} of ${formatINRShort(s.allottedExpenses)}`} loading={isLoading} />
         )}
         <KpiCard label="Project completion" value={formatPct(s.progress * 100, 0)} sub={`${s.activeCount} active · ${s.completedCount} completed`} loading={isLoading} />
-        <CountCard label="Projects at risk" count={atRisk.length} active={filter === "risk"} onClick={() => setFilter(filter === "risk" ? "all" : "risk")} loading={isLoading} />
+        <CountCard label="Projects at risk" emphasis count={atRisk.length} active={filter === "risk"} onClick={() => setFilter(filter === "risk" ? "all" : "risk")} loading={isLoading} />
         <CountCard label="Over budget" count={overBudget.length} active={filter === "budget"} onClick={() => setFilter(filter === "budget" ? "all" : "budget")} loading={isLoading} />
         <CountCard label="Below PPI baseline" count={lowPpi.length} active={filter === "ppi"} onClick={() => setFilter(filter === "ppi" ? "all" : "ppi")} loading={isLoading} />
       </section>
@@ -409,7 +410,7 @@ function PortfolioDashboard() {
   );
 }
 
-function CountCard({ label, count, active, onClick, loading }: { label: string; count: number; active: boolean; onClick: () => void; loading?: boolean }) {
+function CountCard({ label, count, active, onClick, loading, emphasis }: { label: string; count: number; active: boolean; onClick: () => void; loading?: boolean; emphasis?: boolean }) {
   const h: Health = count === 0 ? { tone: "good", label: "None" } : { tone: count > 2 ? "bad" : "warn", label: active ? "Filtered below" : "Show in table" };
   return (
     <KpiCard
@@ -418,6 +419,7 @@ function CountCard({ label, count, active, onClick, loading }: { label: string; 
       health={h}
       onClick={onClick}
       loading={loading}
+      emphasis={emphasis && count > 0}
       className={cn(active && "ring-2 ring-primary")}
     />
   );
