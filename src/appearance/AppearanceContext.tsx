@@ -16,8 +16,12 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-/** "standard" is the original design; "studio" is the softer look with floating panels, rounded cards and pill buttons. */
-export type Style = "standard" | "studio";
+/**
+ * "standard" is the original design; "studio" is the softer look with floating panels, rounded cards and pill buttons;
+ * "calm" puts the page on a calm green ground with a pill menu across the top, soft cream cards and a greeting
+ * dashboard (big numbers, cost trend, weekly in/out chart).
+ */
+export type Style = "standard" | "studio" | "calm";
 export type ThemePref = "system" | "light" | "dark" | "sunlight";
 export type ResolvedTheme = Exclude<ThemePref, "system">;
 export type View = "classic" | "topnav" | "field";
@@ -38,6 +42,7 @@ const STORAGE_KEY = "aerosys.appearance";
 export const STYLE_OPTIONS: Array<{ value: Style; label: string; hint: string }> = [
   { value: "standard", label: "Standard", hint: "The original design" },
   { value: "studio", label: "Studio", hint: "Floating panels, rounded cards and pill buttons" },
+  { value: "calm", label: "Calm", hint: "Pill menu on a green ground, soft cards and a greeting dashboard" },
 ];
 
 export const THEME_OPTIONS: Array<{ value: ThemePref; label: string; hint: string }> = [
