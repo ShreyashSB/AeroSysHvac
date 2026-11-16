@@ -124,6 +124,22 @@ function ViewPreview({ view }: { view: View }) {
 
 /** Mini drawing of each style: flat panels with borders vs floating rounded panels on a blue ground. */
 function StylePreview({ style }: { style: Style }) {
+  if (style === "calm") {
+    return (
+      <div className="flex h-16 flex-col gap-1 rounded-md p-1" style={{ background: "#3f5638" }}>
+        <div className="flex h-2 items-center gap-0.5 rounded-full px-0.5" style={{ background: "rgb(255 255 255 / 0.14)" }}>
+          <div className="h-1.5 w-3 rounded-full" style={{ background: "#141813" }} />
+          <div className="h-1 w-2 rounded-full" style={{ background: "rgb(255 255 255 / 0.5)" }} />
+          <div className="h-1 w-2 rounded-full" style={{ background: "rgb(255 255 255 / 0.5)" }} />
+        </div>
+        <div className="h-1.5 w-1/3 rounded-full" style={{ background: "#ffffff" }} />
+        <div className="flex flex-1 gap-1">
+          <div className="flex-[3] rounded-[5px]" style={{ background: "#f7f6ef" }} />
+          <div className="flex-[2] rounded-[5px]" style={{ background: "#f7f6ef" }} />
+        </div>
+      </div>
+    );
+  }
   if (style === "studio") {
     return (
       <div className="flex h-16 gap-1 rounded-md p-1" style={{ background: "#d7e6f6" }}>
